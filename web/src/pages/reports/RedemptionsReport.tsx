@@ -10,16 +10,16 @@ import { SearchInput } from '@/components/ui/search-input'
 import { FilterPills } from '@/components/ui/filter-pills'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingBlock } from '@/components/ui/spinner'
-import { fetchRedemptionsReport } from '@/lib/reportsApi'
-import { usePaginatedQuery } from '@/lib/paginatedQuery'
-import { useDebounce } from '@/lib/useDebounce'
+import { fetchRedemptionsReport } from '@/lib/api/reports'
+import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import {
   formatDateTime,
   rangeToDates,
   parseRangeParam,
   DATE_RANGE_PRESETS,
   type DateRange,
-} from '@/lib/formatDate'
+} from '@/lib/utils/date'
 
 /**
  * /admin/reports/redemptions — paginated reward-redemption log. Opens from

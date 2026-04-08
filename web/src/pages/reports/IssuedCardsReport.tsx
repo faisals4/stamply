@@ -10,10 +10,10 @@ import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingBlock } from '@/components/ui/spinner'
-import { fetchIssuedCardsReport } from '@/lib/reportsApi'
-import { usePaginatedQuery } from '@/lib/paginatedQuery'
-import { useDebounce } from '@/lib/useDebounce'
-import { formatDate } from '@/lib/formatDate'
+import { fetchIssuedCardsReport } from '@/lib/api/reports'
+import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
+import { useDebounce } from '@/lib/hooks/useDebounce'
+import { formatDate } from '@/lib/utils/date'
 
 /**
  * /admin/reports/issued-cards — paginated list of every card issued across

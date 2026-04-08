@@ -8,7 +8,7 @@ import {
   Menu,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useOpAuth } from '@/lib/opAuth'
+import { useOpAuth } from '@/lib/auth/opAuth'
 import { Avatar } from '@/components/ui/avatar-img'
 import { Logo } from '@/components/brand/Logo'
 

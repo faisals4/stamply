@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useI18n } from '@/i18n'
-import { createStaff, type StaffRole } from '@/lib/staffApi'
-import { listLocations } from '@/lib/locationsApi'
+import { createStaff, type StaffRole } from '@/lib/api/staff'
+import { listLocations } from '@/lib/api/locations'
 
 interface Props {
   open: boolean

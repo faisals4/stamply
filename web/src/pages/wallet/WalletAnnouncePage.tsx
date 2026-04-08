@@ -22,8 +22,8 @@ import {
   announceAllCards,
   type AnnounceResult,
   type AnnounceAllResult,
-} from '@/lib/phase1Api'
-import { listCardsApi } from '@/lib/cardsApi'
+} from '@/lib/api/misc'
+import { listCardsApi } from '@/lib/api/cards'
 import { AnnouncementPreview } from './AnnouncementPreview'
 
 const MAX_CHARS = 500

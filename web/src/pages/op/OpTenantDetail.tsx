@@ -13,12 +13,12 @@ import { Button } from '@/components/ui/button'
 import { BackButton } from '@/components/ui/back-button'
 import { DeleteButton } from '@/components/ui/delete-button'
 import { PageHeader } from '@/components/ui/page-header'
-import { formatDate } from '@/lib/formatDate'
+import { formatDate } from '@/lib/utils/date'
 import {
   getOpTenant,
   toggleOpTenant,
   deleteOpTenant,
-} from '@/lib/opApi'
+} from '@/lib/api/op'
 
 /**
  * /op/tenants/:id — full tenant detail for the SaaS operator. Shows brand

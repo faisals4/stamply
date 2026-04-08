@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useLocation } from 'wouter'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { usePaginatedQuery } from '@/lib/paginatedQuery'
-import { useDebounce } from '@/lib/useDebounce'
+import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { Pagination } from '@/components/ui/pagination'
-import { formatDate } from '@/lib/formatDate'
+import { formatDate } from '@/lib/utils/date'
 import {
   Search,
   Building2,
@@ -19,7 +19,7 @@ import {
   listOpTenants,
   toggleOpTenant,
   type OpTenantListItem,
-} from '@/lib/opApi'
+} from '@/lib/api/op'
 import { cn } from '@/lib/utils'
 
 /**

@@ -40,7 +40,7 @@ import {
   updatePlatformAppleWallet,
   updatePlatformGoogleWallet,
   type PlatformWalletSettings,
-} from '@/lib/opSettingsApi'
+} from '@/lib/api/op/settings'
 
 /**
  * /op/settings — platform-level configuration owned by the SaaS operator.

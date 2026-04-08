@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { ShieldOff } from 'lucide-react'
 import { useLocation } from 'wouter'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth/auth'
 
 interface Props {
   permission: string

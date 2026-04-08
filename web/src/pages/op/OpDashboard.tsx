@@ -8,8 +8,8 @@ import {
   Gift,
   LayoutDashboard,
 } from 'lucide-react'
-import { useOpAuth } from '@/lib/opAuth'
-import { getOpDashboardStats } from '@/lib/opApi'
+import { useOpAuth } from '@/lib/auth/opAuth'
+import { getOpDashboardStats } from '@/lib/api/op'
 import { StatCard } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 

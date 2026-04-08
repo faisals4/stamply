@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import {
   getMessagesReach,
   type ReachChannel,
-} from '@/lib/messagesApi'
+} from '@/lib/api/messages'
 import { ReachableCustomersDialog } from './ReachableCustomersDialog'
 
 /**

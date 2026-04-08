@@ -2,8 +2,8 @@ import { useRoute } from 'wouter'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2, Copy, CheckCircle2, Gift, Bell } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { getIssuedCard, getWalletAvailability } from '@/lib/phase1Api'
-import { detectWalletTarget } from '@/lib/detectWalletTarget'
+import { getIssuedCard, getWalletAvailability } from '@/lib/api/misc'
+import { detectWalletTarget } from '@/lib/wallet/detectTarget'
 import { DEFAULT_LABELS } from '@/types/card'
 import {
   fetchPublicPushConfig,
@@ -11,7 +11,7 @@ import {
   currentPermission,
   getExistingSubscription,
   subscribeToPush,
-} from '@/lib/webPush'
+} from '@/lib/wallet/webPush'
 import { CardVisual } from '@/components/card/CardVisual'
 import { PublicShell } from './Register'
 import { PhoneVerificationBlock } from './PhoneVerificationBlock'

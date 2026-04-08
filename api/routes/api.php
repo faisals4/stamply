@@ -3,24 +3,24 @@
 use App\Http\Controllers\Api\App\CustomerAuthController as AppCustomerAuthController;
 use App\Http\Controllers\Api\App\CustomerCardsController as AppCustomerCardsController;
 use App\Http\Controllers\Api\App\CustomerProfileController as AppCustomerProfileController;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\AutomationController;
-use App\Http\Controllers\Api\CardController;
-use App\Http\Controllers\Api\CashierController;
-use App\Http\Controllers\Api\CustomerController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\EmailTemplateController;
-use App\Http\Controllers\Api\IntegrationsController;
-use App\Http\Controllers\Api\LocationController;
-use App\Http\Controllers\Api\MessageController;
-use App\Http\Controllers\Api\PermissionsController;
-use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\ReportsController;
-use App\Http\Controllers\Api\PublicCardController;
-use App\Http\Controllers\Api\PublicPushTokenController;
-use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\Tenant\AuthController;
+use App\Http\Controllers\Api\Tenant\AutomationController;
+use App\Http\Controllers\Api\Tenant\CardController;
+use App\Http\Controllers\Api\Tenant\CashierController;
+use App\Http\Controllers\Api\Tenant\CustomerController;
+use App\Http\Controllers\Api\Tenant\DashboardController;
+use App\Http\Controllers\Api\Tenant\EmailTemplateController;
+use App\Http\Controllers\Api\Tenant\IntegrationsController;
+use App\Http\Controllers\Api\Tenant\LocationController;
+use App\Http\Controllers\Api\Tenant\MessageController;
+use App\Http\Controllers\Api\Tenant\PermissionsController;
+use App\Http\Controllers\Api\Tenant\ProfileController;
+use App\Http\Controllers\Api\Tenant\ReportsController;
+use App\Http\Controllers\Api\Public\PublicCardController;
+use App\Http\Controllers\Api\Public\PublicPushTokenController;
+use App\Http\Controllers\Api\Tenant\StaffController;
 use App\Http\Controllers\Api\Wallet\ApplePassKitController;
-use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\Wallet\WalletController;
 use Illuminate\Support\Facades\Route;
 
 // Health check
@@ -54,13 +54,13 @@ Route::prefix('public')->group(function () {
     // verified the flag propagates to every customer row with the
     // same phone across all tenants. See PublicOtpController for
     // the full flow + rate limits.
-    Route::post('/otp/request', [\App\Http\Controllers\Api\PublicOtpController::class, 'request']);
-    Route::post('/otp/verify', [\App\Http\Controllers\Api\PublicOtpController::class, 'verify']);
+    Route::post('/otp/request', [\App\Http\Controllers\Api\Public\PublicOtpController::class, 'request']);
+    Route::post('/otp/verify', [\App\Http\Controllers\Api\Public\PublicOtpController::class, 'verify']);
 
     // Tenant brand logo — served as a real image so Google Wallet's
     // server-side image fetcher can load it (Google rejects data: URLs
     // in loyaltyClass programLogo.sourceUri.uri).
-    Route::get('/tenant/{id}/logo', [\App\Http\Controllers\Api\TenantController::class, 'publicLogo']);
+    Route::get('/tenant/{id}/logo', [\App\Http\Controllers\Api\Tenant\TenantController::class, 'publicLogo']);
 
     // Wallet (Phase 2)
     Route::get('/wallet/availability', [WalletController::class, 'availability']);
@@ -99,7 +99,7 @@ Route::prefix('app')->group(function () {
 Route::post('/login', [AuthController::class, 'login']);
 
 // Self-serve merchant signup (public)
-Route::post('/signup', [\App\Http\Controllers\Api\SignupController::class, 'store']);
+Route::post('/signup', [\App\Http\Controllers\Api\Public\SignupController::class, 'store']);
 
 /* ─────────────────────────────────────────────────────────────── */
 /*  /op — Platform (SaaS Operator) routes                           */
@@ -161,8 +161,8 @@ Route::middleware(['auth:sanctum', 'abilities:tenant'])->group(function () {
     Route::post('/profile/logout-all', [ProfileController::class, 'logoutAll']);
 
     // Current tenant profile (brand info)
-    Route::get('/tenant', [\App\Http\Controllers\Api\TenantController::class, 'show']);
-    Route::put('/tenant', [\App\Http\Controllers\Api\TenantController::class, 'update']);
+    Route::get('/tenant', [\App\Http\Controllers\Api\Tenant\TenantController::class, 'show']);
+    Route::put('/tenant', [\App\Http\Controllers\Api\Tenant\TenantController::class, 'update']);
 
     Route::get('/dashboard/stats', [DashboardController::class, 'stats'])
         ->middleware('can.perm:dashboard.view');
@@ -291,17 +291,17 @@ Route::middleware(['auth:sanctum', 'abilities:tenant'])->group(function () {
         Route::post('/email-templates/{key}/test', [EmailTemplateController::class, 'test']);
 
         // SMS templates — mirror of email templates
-        Route::get('/sms-templates', [\App\Http\Controllers\Api\SmsTemplateController::class, 'index']);
-        Route::get('/sms-templates/{key}', [\App\Http\Controllers\Api\SmsTemplateController::class, 'show']);
-        Route::put('/sms-templates/{key}', [\App\Http\Controllers\Api\SmsTemplateController::class, 'update']);
-        Route::post('/sms-templates/{key}/reset', [\App\Http\Controllers\Api\SmsTemplateController::class, 'reset']);
-        Route::post('/sms-templates/{key}/test', [\App\Http\Controllers\Api\SmsTemplateController::class, 'test']);
+        Route::get('/sms-templates', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'index']);
+        Route::get('/sms-templates/{key}', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'show']);
+        Route::put('/sms-templates/{key}', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'update']);
+        Route::post('/sms-templates/{key}/reset', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'reset']);
+        Route::post('/sms-templates/{key}/test', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'test']);
 
         // Push templates — mirror sms_templates
-        Route::get('/push-templates', [\App\Http\Controllers\Api\PushTemplateController::class, 'index']);
-        Route::get('/push-templates/{key}', [\App\Http\Controllers\Api\PushTemplateController::class, 'show']);
-        Route::put('/push-templates/{key}', [\App\Http\Controllers\Api\PushTemplateController::class, 'update']);
-        Route::post('/push-templates/{key}/reset', [\App\Http\Controllers\Api\PushTemplateController::class, 'reset']);
-        Route::post('/push-templates/{key}/test', [\App\Http\Controllers\Api\PushTemplateController::class, 'test']);
+        Route::get('/push-templates', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'index']);
+        Route::get('/push-templates/{key}', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'show']);
+        Route::put('/push-templates/{key}', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'update']);
+        Route::post('/push-templates/{key}/reset', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'reset']);
+        Route::post('/push-templates/{key}/test', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'test']);
     });
 });

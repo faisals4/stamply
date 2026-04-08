@@ -3,7 +3,7 @@ import * as Icons from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { CardDesign } from '@/types/card'
 import { isCustomIcon } from '@/pages/cards/editor/stampIcons'
-import { pickStampGrid } from '@/lib/stampGrid'
+import { pickStampGrid } from '@/lib/utils/stampGrid'
 
 interface StampsGridProps {
   design: CardDesign

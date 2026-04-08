@@ -17,11 +17,11 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/i18n'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth/auth'
 import { Avatar } from '@/components/ui/avatar-img'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Logo } from '@/components/brand/Logo'
-import { getTenant } from '@/lib/tenantApi'
+import { getTenant } from '@/lib/api/tenant'
 
 /**
  * Each nav entry declares the permission required to even SEE it. Items are

@@ -34,8 +34,8 @@ import {
   type ReachableCustomer,
   type ReachableDevice,
   type InstalledCard,
-} from '@/lib/messagesApi'
-import { formatDate } from '@/lib/formatDate'
+} from '@/lib/api/messages'
+import { formatDate } from '@/lib/utils/date'
 
 /**
  * Modal that lists the customers reachable on a given channel.

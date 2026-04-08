@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Logo } from '@/components/brand/Logo'
-import { useOpAuth } from '@/lib/opAuth'
-import { opLogin } from '@/lib/opApi'
+import { useOpAuth } from '@/lib/auth/opAuth'
+import { opLogin } from '@/lib/api/op'
 
 /**
  * /op/login — SaaS operator login. Separate from /admin/login; only

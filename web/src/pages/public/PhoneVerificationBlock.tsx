@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 import { ShieldCheck, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { requestPhoneOtp, verifyPhoneOtp } from '@/lib/phase1Api'
+import { requestPhoneOtp, verifyPhoneOtp } from '@/lib/api/misc'
 
 /**
  * Convert Arabic-Indic (٠-٩) and Extended Arabic-Indic (۰-۹) digits

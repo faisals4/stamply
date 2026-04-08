@@ -13,13 +13,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
-import { useOpAuth } from '@/lib/opAuth'
+import { useOpAuth } from '@/lib/auth/opAuth'
 import {
   getOpProfile,
   updateOpProfile,
   changeOpPassword,
   opLogoutAllDevices,
-} from '@/lib/opProfileApi'
+} from '@/lib/api/op/profile'
 import { BackButton } from '@/components/ui/back-button'
 
 /**

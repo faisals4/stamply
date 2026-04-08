@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { CardTemplate } from '@/types/card'
 import { resolveLabels, computeAvailableGifts } from '@/types/card'
 import { StampsGrid } from '@/components/card/StampsGrid'
-import { getTenant } from '@/lib/tenantApi'
+import { getTenant } from '@/lib/api/tenant'
 
 interface Props {
   card: CardTemplate

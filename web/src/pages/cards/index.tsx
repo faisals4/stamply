@@ -11,7 +11,7 @@ import { EditButton } from '@/components/ui/edit-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { CardVisual } from '@/components/card/CardVisual'
 import { useI18n } from '@/i18n'
-import { listCardsApi, deleteCardApi } from '@/lib/cardsApi'
+import { listCardsApi, deleteCardApi } from '@/lib/api/cards'
 import type { CardTemplate } from '@/types/card'
 
 export default function CardsListPage() {

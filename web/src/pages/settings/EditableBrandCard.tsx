@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { EditButton } from '@/components/ui/edit-button'
-import { getTenant, updateTenant } from '@/lib/tenantApi'
+import { getTenant, updateTenant } from '@/lib/api/tenant'
 
 const MAX_LOGO_BYTES = 1.5 * 1024 * 1024 // 1.5 MB after base64
 

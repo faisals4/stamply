@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, MapPin, AlertCircle } from 'lucide-react'
-import { listLocations } from '@/lib/locationsApi'
+import { listLocations } from '@/lib/api/locations'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
