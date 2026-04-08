@@ -1,0 +1,196 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Theme tokens — Stamply brand (light mode only; dark mode was removed) */
+@theme inline {
+  --font-sans: "IBM Plex Sans Arabic", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  /* Stamply brand primary — #003bc0 */
+  --brand: #003bc0;
+
+  /* Light mode */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #003bc0;
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* ─── Landing: "What is" hand-phone gentle float ────────────── */
+@keyframes whatis-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+
+.whatis-float {
+  animation: whatis-float 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatis-float {
+    animation: none;
+  }
+}
+
+/* ─── Landing: "How it works" step circles ─────────────────── */
+@keyframes step-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes step-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+@keyframes step-ring-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 8px rgba(0, 59, 192, 0.10),
+                0 10px 20px -8px rgba(0, 59, 192, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(0, 59, 192, 0.06),
+                0 14px 28px -8px rgba(0, 59, 192, 0.45);
+  }
+}
+
+.step-circle {
+  opacity: 0;
+  animation: step-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-play-state: paused;
+}
+
+.steps-visible .step-circle {
+  animation-play-state: running;
+}
+
+.steps-visible .step-circle:nth-child(1) { animation-delay: 0.05s; }
+.steps-visible .step-circle:nth-child(2) { animation-delay: 0.20s; }
+.steps-visible .step-circle:nth-child(3) { animation-delay: 0.35s; }
+.steps-visible .step-circle:nth-child(4) { animation-delay: 0.50s; }
+
+.step-circle-visual {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.35s ease;
+  animation-play-state: paused;
+  will-change: transform, box-shadow;
+}
+
+.steps-visible .step-circle-visual {
+  animation: step-float 4.5s ease-in-out infinite,
+             step-ring-pulse 3.5s ease-in-out infinite;
+  animation-play-state: running;
+}
+
+/* stagger the continuous phases so they don't move in unison */
+.steps-visible .step-circle:nth-child(1) .step-circle-visual {
+  animation-delay: 0.8s, 0.8s;
+}
+.steps-visible .step-circle:nth-child(2) .step-circle-visual {
+  animation-delay: 1.1s, 1.0s;
+}
+.steps-visible .step-circle:nth-child(3) .step-circle-visual {
+  animation-delay: 1.4s, 1.2s;
+}
+.steps-visible .step-circle:nth-child(4) .step-circle-visual {
+  animation-delay: 1.7s, 1.4s;
+}
+
+.step-circle:hover .step-circle-visual {
+  animation-play-state: paused;
+  transform: translateY(-8px) scale(1.06);
+  box-shadow: 0 0 0 16px rgba(0, 59, 192, 0.08),
+              0 20px 40px -10px rgba(0, 59, 192, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-circle {
+    opacity: 1;
+    animation: none;
+  }
+  .step-circle-visual,
+  .steps-visible .step-circle-visual {
+    animation: none;
+  }
+  .step-circle:hover .step-circle-visual {
+    transform: none;
+  }
+}

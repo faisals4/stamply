@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /op
+Disallow: /op/
+Disallow: /i/
+Disallow: /c/
+
+Sitemap: https://stamply.cards/sitemap.xml

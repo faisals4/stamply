@@ -1,0 +1,52 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+dist/
+build/
+.next/
+.turbo/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Laravel
+api/bootstrap/cache/*.php
+api/storage/logs/*
+api/storage/framework/cache/*
+api/storage/framework/sessions/*
+api/storage/framework/views/*
+api/storage/app/public/*
+api/public/storage
+api/public/hot
+api/storage/certificates/
+api/storage/wallet-passes/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.tmp/
+tmp/

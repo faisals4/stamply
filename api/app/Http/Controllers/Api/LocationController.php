@@ -1,0 +1,62 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Location;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class LocationController extends Controller
+{
+    public function index(): JsonResponse
+    {
+        $locations = Location::orderBy('name')->get();
+
+        return response()->json(['data' => $locations]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $data = $this->validateLocation($request);
+        $location = Location::create($data);
+
+        return response()->json(['data' => $location], 201);
+    }
+
+    public function show(string $id): JsonResponse
+    {
+        $location = Location::findOrFail($id);
+
+        return response()->json(['data' => $location]);
+    }
+
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $location = Location::findOrFail($id);
+        $data = $this->validateLocation($request);
+        $location->update($data);
+
+        return response()->json(['data' => $location->fresh()]);
+    }
+
+    public function destroy(string $id): JsonResponse
+    {
+        Location::findOrFail($id)->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
+    private function validateLocation(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180'],
+            'geofence_radius_m' => ['nullable', 'integer', 'min:10', 'max:10000'],
+            'message' => ['nullable', 'string', 'max:160'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+    }
+}
