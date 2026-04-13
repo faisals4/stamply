@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 import { BackButton } from '@/components/ui/back-button'
@@ -131,7 +132,7 @@ export default function IntegrationSmsPage() {
   }
 
   if (isLoading || !config) {
-    return <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+    return <FullPageLoader />
   }
 
   return (
@@ -322,7 +323,7 @@ export default function IntegrationSmsPage() {
             [
               {
                 key: 'welcome',
-                icon: <UserPlus className="w-4 h-4 text-blue-500" />,
+                icon: <UserPlus className="w-4 h-4 text-violet-500" />,
                 title: 'رسالة ترحيبية',
                 description: 'SMS ترحيبي فور تسجيل عميل جديد مع رابط البطاقة',
               },

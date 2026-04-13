@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useLocation } from 'wouter'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { FullPageLoader } from '@/components/ui/spinner'
+import { Pagination } from '@/components/ui/pagination'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
 import { Plus, CreditCard, Link as LinkIcon, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
@@ -12,6 +15,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { CardVisual } from '@/components/card/CardVisual'
 import { useI18n } from '@/i18n'
 import { listCardsApi, deleteCardApi } from '@/lib/api/cards'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import type { CardTemplate } from '@/types/card'
 
 export default function CardsListPage() {
@@ -19,10 +23,29 @@ export default function CardsListPage() {
   const [, setLocation] = useLocation()
   const qc = useQueryClient()
 
-  const { data: cards = [], isLoading, error } = useQuery({
-    queryKey: ['cards'],
-    queryFn: listCardsApi,
-  })
+  const guard = useSubscriptionGuard()
+  const createBlocked = guard.isExpired || !guard.canCreate('cards')
+  const createBlockedMessage = guard.isExpired
+    ? guard.expiredMessage
+    : guard.quotaMessage('cards')
+
+  const handleCreate = () => {
+    if (createBlocked) {
+      alert(createBlockedMessage)
+      return
+    }
+    setLocation('/admin/cards/new')
+  }
+
+  const [page, setPage] = useState(1)
+
+  const { data, isLoading, error } = usePaginatedQuery<CardTemplate>(
+    ['cards'],
+    (p) => listCardsApi({ page: p }),
+    page,
+  )
+  const cards = data?.data ?? []
+  const meta = data?.meta
 
   const deleteMutation = useMutation({
     mutationFn: deleteCardApi,
@@ -36,7 +59,7 @@ export default function CardsListPage() {
         title={t('cards')}
         subtitle="صمّم قوالب البطاقات واربطها بعملائك"
         action={
-          <Button onClick={() => setLocation('/admin/cards/new')}>
+          <Button onClick={handleCreate} className={createBlocked ? 'opacity-60' : ''}>
             <Plus className="w-4 h-4 me-1.5" />
             إنشاء بطاقة
           </Button>
@@ -44,11 +67,11 @@ export default function CardsListPage() {
       />
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+        <FullPageLoader />
       ) : error ? (
         <div className="text-sm text-destructive">تعذر تحميل البطاقات</div>
       ) : cards.length === 0 ? (
-        <EmptyState onCreate={() => setLocation('/admin/cards/new')} />
+        <EmptyState onCreate={handleCreate} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {cards.map((card) => (
@@ -59,8 +82,16 @@ export default function CardsListPage() {
               isDeleting={
                 deleteMutation.isPending && deleteMutation.variables === card.id
               }
+              writeBlocked={guard.blocked}
+              writeBlockedMessage={guard.isExpired ? guard.expiredMessage : ''}
             />
           ))}
+        </div>
+      )}
+
+      {meta && meta.last_page > 1 && (
+        <div className="mt-4">
+          <Pagination meta={meta} onPageChange={setPage} />
         </div>
       )}
     </div>
@@ -89,10 +120,14 @@ function CardItem({
   card,
   onDelete,
   isDeleting,
+  writeBlocked,
+  writeBlockedMessage,
 }: {
   card: CardTemplate
   onDelete: () => Promise<unknown>
   isDeleting: boolean
+  writeBlocked: boolean
+  writeBlockedMessage: string
 }) {
   const statusBadge = {
     draft: { label: 'مسودة', variant: 'secondary' as const },
@@ -132,7 +167,11 @@ function CardItem({
           }
           confirmLabel="حذف البطاقة"
           loading={isDeleting}
-          onConfirm={onDelete}
+          disabled={writeBlocked}
+          onConfirm={() => {
+            if (writeBlocked) { alert(writeBlockedMessage); return Promise.resolve() }
+            return onDelete()
+          }}
         />
       </CardHeader>
 
@@ -141,7 +180,12 @@ function CardItem({
       </CardContent>
 
       <CardFooter className="pt-0 border-t flex items-center gap-2">
-        <EditButton href={`/admin/cards/${card.id}`} label="تعديل البطاقة" />
+        <EditButton
+          href={writeBlocked ? undefined : `/admin/cards/${card.id}`}
+          onClick={writeBlocked ? () => alert(writeBlockedMessage) : undefined}
+          label="تعديل البطاقة"
+          disabled={writeBlocked}
+        />
         <ShareLinkButton slug={card.publicSlug ?? card.id} />
         <span className="text-xs text-muted-foreground ms-auto">
           {card.design.stampsCount} طوابع
@@ -182,7 +226,7 @@ function ShareLinkButton({ slug }: { slug: string }) {
           rel="noopener noreferrer"
           onClick={copy}
           aria-label={copied ? 'تم النسخ' : 'نسخ رابط البطاقة للعملاء'}
-          className="w-9 h-9 inline-flex items-center justify-center rounded-md border bg-card hover:bg-primary hover:text-primary-foreground hover:border-primary transition"
+          className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] hover:bg-[#8B52F6] hover:text-white transition-all duration-200"
         >
           {copied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
         </a>

@@ -1,4 +1,5 @@
 import { useLocation } from 'wouter'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { useQuery } from '@tanstack/react-query'
 import {
   ShieldCheck,
@@ -32,7 +33,7 @@ export default function PermissionsPage() {
       label: 'مدير النظام',
       description: 'صلاحيات كاملة على كل أقسام النظام',
       icon: ShieldCheck,
-      accent: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
+      accent: 'bg-violet-500/15 text-violet-600 border-violet-500/30',
     },
     manager: {
       label: 'مدير فرع',
@@ -66,7 +67,7 @@ export default function PermissionsPage() {
       />
 
       {isLoading || !data ? (
-        <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+        <FullPageLoader />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {(['admin', 'manager', 'cashier'] as const).map((role) => {

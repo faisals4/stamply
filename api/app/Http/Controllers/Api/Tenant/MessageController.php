@@ -50,13 +50,18 @@ class MessageController extends Controller
         // to join or filter by tenant_id explicitly.
         $total = Customer::count();
 
-        $email = Customer::whereNotNull('email')
+        // Email and phone live on customer_profiles now; pivot
+        // through the profile relation with whereHas so the count
+        // stays tenant-scoped.
+        $email = Customer::whereHas('profile', fn ($q) => $q
+            ->whereNotNull('email')
             ->where('email', '!=', '')
-            ->count();
+        )->count();
 
-        $sms = Customer::whereNotNull('phone')
+        $sms = Customer::whereHas('profile', fn ($q) => $q
+            ->whereNotNull('phone')
             ->where('phone', '!=', '')
-            ->count();
+        )->count();
 
         $push = Customer::whereHas('pushTokens')->count();
 
@@ -132,14 +137,24 @@ class MessageController extends Controller
         }
 
         $query = Customer::query()
+            // Eager-load profile for the 25 rows on this page so
+            // the serializer below (c->full_name, c->phone, c->email)
+            // doesn't fire N+1 queries.
+            ->with('profile:id,phone,first_name,last_name,email')
             ->withCount('issuedCards')
             ->orderByDesc('last_activity_at')
             ->orderByDesc('id');
 
         if ($channel === 'email') {
-            $query->whereNotNull('email')->where('email', '!=', '');
+            $query->whereHas('profile', fn ($q) => $q
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+            );
         } elseif ($channel === 'sms') {
-            $query->whereNotNull('phone')->where('phone', '!=', '');
+            $query->whereHas('profile', fn ($q) => $q
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '')
+            );
         } elseif ($channel === 'push') {
             // `whereHas` compiles to a correlated EXISTS subquery —
             // index-friendly and never loads the push_tokens rows
@@ -153,11 +168,11 @@ class MessageController extends Controller
         }
 
         // Optional search — applied BEFORE pagination so OFFSET stays
-        // small. Matches against the three columns merchants actually
-        // search by; all three are indexed.
+        // small. Personal fields live on customer_profiles; whereHas
+        // on the profile relation keeps the inner EXISTS index-friendly.
         $q = trim((string) $request->query('q', ''));
         if ($q !== '') {
-            $query->where(function ($w) use ($q) {
+            $query->whereHas('profile', function ($w) use ($q) {
                 $w->where('first_name', 'like', "%{$q}%")
                     ->orWhere('last_name', 'like', "%{$q}%")
                     ->orWhere('phone', 'like', "%{$q}%")
@@ -500,17 +515,26 @@ class MessageController extends Controller
     /** @return \Illuminate\Database\Eloquent\Collection<int,Customer> */
     private function resolveAudience(Message $message)
     {
-        $query = Customer::query();
+        // Eager-load profile so every send step below (reading
+        // email/phone/full_name/first_name on each customer)
+        // doesn't lazy-fetch a profile per recipient.
+        $query = Customer::query()->with('profile');
 
         // Per-channel reachability filter. For wallet we require at
         // least one issued card with an Apple Wallet pass registration
         // — anyone else would just generate no-op jobs.
         if ($message->channel === 'email') {
-            $query->whereNotNull('email')->where('email', '!=', '');
+            $query->whereHas('profile', fn ($q) => $q
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+            );
         } elseif ($message->channel === 'wallet') {
             $query->whereHas('issuedCards.applePassRegistrations');
         } else {
-            $query->whereNotNull('phone')->where('phone', '!=', '');
+            $query->whereHas('profile', fn ($q) => $q
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '')
+            );
         }
 
         if ($message->audience === 'inactive') {

@@ -145,9 +145,15 @@ function toApiPayload(card: CardTemplate) {
   }
 }
 
-export async function listCardsApi(): Promise<CardTemplate[]> {
-  const { data } = await api.get<{ data: ApiCard[] }>('/cards')
-  return data.data.map(fromApi)
+export async function listCardsApi(params?: {
+  page?: number
+  q?: string
+}): Promise<import('@/types/pagination').Paginated<CardTemplate>> {
+  const { data } = await api.get<{ data: ApiCard[]; meta: import('@/types/pagination').PaginationMeta }>(
+    '/cards',
+    { params },
+  )
+  return { data: data.data.map(fromApi), meta: data.meta }
 }
 
 export async function getCardApi(id: string): Promise<CardTemplate> {

@@ -92,7 +92,7 @@ export function ReachableCustomersDialog({
           <DialogTitle className="flex items-center gap-2">
             {channel === 'wallet' && <Wallet className="w-5 h-5 text-indigo-600" />}
             {channel === 'push' && <Bell className="w-5 h-5 text-amber-600" />}
-            {channel === 'email' && <Mail className="w-5 h-5 text-blue-600" />}
+            {channel === 'email' && <Mail className="w-5 h-5 text-violet-600" />}
             {channel === 'sms' && <Smartphone className="w-5 h-5 text-emerald-600" />}
             {channelTitle(channel)}
           </DialogTitle>

@@ -23,12 +23,20 @@ class CustomerController extends Controller
         $search = $request->query('q');
         $filter = $request->query('filter'); // active|inactive|new|birthday_month
 
+        // `with('profile')` is mandatory — every serialized field
+        // below (phone, first_name, email, birthdate) is a proxy
+        // accessor on Customer that reads from the related
+        // CustomerProfile. Without eager loading we'd get N+1.
         $query = Customer::query()
+            ->with('profile')
             ->withCount('issuedCards')
             ->orderByDesc('last_activity_at');
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
+            // Personal fields live on the profile now — search via
+            // whereHas on the profile relation. Phone is on the
+            // profile too.
+            $query->whereHas('profile', function ($q) use ($search) {
                 $q->where('phone', 'like', "%{$search}%")
                     ->orWhere('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
@@ -60,13 +68,17 @@ class CustomerController extends Controller
                 $query->where('created_at', '>=', now()->subDays(30));
                 break;
             case 'birthday_month':
-                $query->whereMonth('birthdate', now()->month);
+                // birthdate moved to customer_profiles — fan the
+                // filter out to the relation.
+                $query->whereHas('profile', fn ($q) => $q->whereMonth('birthdate', now()->month));
                 break;
             case 'birthday_week':
                 // Birthdays in the next 7 days (compared by day-of-year to
                 // handle year rollover across Dec 26 → Jan 2).
-                $query->whereNotNull('birthdate')
-                    ->whereRaw('((extract(doy from birthdate)::int - extract(doy from now())::int + 366) % 366) BETWEEN 0 AND 7');
+                $query->whereHas('profile', function ($q) {
+                    $q->whereNotNull('birthdate')
+                        ->whereRaw('((extract(doy from birthdate)::int - extract(doy from now())::int + 366) % 366) BETWEEN 0 AND 7');
+                });
                 break;
         }
 
@@ -79,6 +91,12 @@ class CustomerController extends Controller
             'full_name' => $c->full_name,
             'email' => $c->email,
             'birthdate' => $c->birthdate?->toDateString(),
+            'gender' => $c->gender,
+            // Verification state and locked fields flow up from
+            // the central profile so the dashboard can badge
+            // verified customers and disable locked form inputs.
+            'phone_verified_at' => $c->phone_verified_at?->toIso8601String(),
+            'locked_fields' => $c->locked_fields,
             'source_utm' => $c->source_utm,
             'issued_cards_count' => $c->issued_cards_count,
             'last_activity_at' => $c->last_activity_at,
@@ -96,6 +114,9 @@ class CustomerController extends Controller
     public function show(string $id): JsonResponse
     {
         $customer = Customer::with([
+            // Profile carries all personal fields (phone, name,
+            // email, birthdate, gender, verification, locks).
+            'profile',
             'issuedCards.template:id,name,design',
             'issuedCards.stamps' => fn ($q) => $q->orderBy('created_at', 'desc'),
             'issuedCards.stamps.givenBy:id,name',
@@ -119,6 +140,9 @@ class CustomerController extends Controller
             'full_name' => $customer->full_name,
             'email' => $customer->email,
             'birthdate' => $customer->birthdate?->toDateString(),
+            'gender' => $customer->gender,
+            'phone_verified_at' => $customer->phone_verified_at?->toIso8601String(),
+            'locked_fields' => $customer->locked_fields,
             'source_utm' => $customer->source_utm,
             'last_activity_at' => $customer->last_activity_at,
             'created_at' => $customer->created_at,
@@ -230,10 +254,23 @@ class CustomerController extends Controller
     /**
      * PUT /api/customers/{id}
      * Update editable profile fields for a customer.
+     *
+     * Personal fields (first_name, last_name, email, birthdate,
+     * phone) live on the central `customer_profiles` table; this
+     * method forwards them there after checking each one against
+     * the profile's `locked_fields` list. If ANY requested field
+     * is locked by the customer, the whole request is refused
+     * with HTTP 423 Locked — the merchant sees a clear error
+     * saying which field(s) are protected.
+     *
+     * Phone changes are still tenant-unique for safety: two
+     * customers in the same tenant can't share a phone. Merchants
+     * rarely need to edit phone though, so this is a fallback
+     * for support tickets more than anything.
      */
     public function update(Request $request, string $id): JsonResponse
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Customer::with('profile')->findOrFail($id);
 
         $data = $request->validate([
             'first_name' => ['nullable', 'string', 'max:64'],
@@ -241,11 +278,47 @@ class CustomerController extends Controller
             'email' => ['nullable', 'email', 'max:120'],
             'phone' => ['nullable', 'string', 'min:5', 'max:32'],
             'birthdate' => ['nullable', 'date'],
+            'gender' => ['nullable', 'string', 'in:male,female'],
         ]);
 
-        // Phone uniqueness within tenant when changing
-        if (! empty($data['phone']) && $data['phone'] !== $customer->phone) {
-            $exists = Customer::where('phone', $data['phone'])
+        // Drop fields the client didn't send so we don't blank out
+        // existing profile values during a partial update.
+        $present = array_filter(
+            array_keys($data),
+            fn ($k) => $request->has($k),
+        );
+
+        // Lock check: any requested field that the customer has
+        // claimed via the mobile app is off-limits. Phone is
+        // ALWAYS considered locked for verified profiles — it's
+        // the identity anchor, changing it should never happen
+        // from the merchant side.
+        $profile = $customer->profile;
+        if (! $profile) {
+            abort(500, 'Customer has no profile — data corruption.');
+        }
+
+        $lockedFields = $profile->locked_fields ?? [];
+        if ($profile->isPhoneVerified()) {
+            $lockedFields[] = 'phone';
+        }
+
+        $conflicts = array_values(array_intersect($present, $lockedFields));
+        if (! empty($conflicts)) {
+            return response()->json([
+                'error' => 'locked_fields',
+                'message' => 'هذا العميل يتحكم بمعلوماته من تطبيق Stamply. لا يمكن تعديل الحقول المحمية.',
+                'locked' => $conflicts,
+            ], 423);
+        }
+
+        // Phone uniqueness within tenant when changing. Phone
+        // lives on the profile now but the merchant's
+        // expectation is "no two of MY customers share a phone",
+        // so we check within the tenant.
+        if (! empty($data['phone']) && $data['phone'] !== $profile->phone) {
+            $exists = Customer::whereHas('profile', fn ($q) => $q->where('phone', $data['phone']))
+                ->where('tenant_id', $customer->tenant_id)
                 ->where('id', '!=', $customer->id)
                 ->exists();
             if ($exists) {
@@ -253,9 +326,47 @@ class CustomerController extends Controller
             }
         }
 
-        $customer->update($data);
+        // Split updates: personal fields go to the profile, any
+        // relationship fields (none currently — locale is the
+        // only tenant-scoped field and it isn't in the update
+        // payload) stay on the customer row.
+        $profileUpdates = array_intersect_key($data, array_flip([
+            'first_name', 'last_name', 'email', 'phone', 'birthdate', 'gender',
+        ]));
+        $profileUpdates = array_filter(
+            $profileUpdates,
+            fn ($k) => in_array($k, $present, true),
+            ARRAY_FILTER_USE_KEY,
+        );
 
-        return response()->json(['data' => $customer->fresh()]);
+        if (! empty($profileUpdates)) {
+            $profile->update($profileUpdates);
+        }
+
+        // Reload the customer with the fresh profile so the response
+        // body reflects the committed state. Eloquent's default
+        // `toArray()` doesn't include attribute accessors, so we
+        // serialize the fields explicitly to guarantee the caller
+        // sees the same shape as GET /api/customers/{id}.
+        $customer->refresh();
+        $customer->load('profile');
+
+        return response()->json(['data' => [
+            'id' => $customer->id,
+            'phone' => $customer->phone,
+            'first_name' => $customer->first_name,
+            'last_name' => $customer->last_name,
+            'full_name' => $customer->full_name,
+            'email' => $customer->email,
+            'birthdate' => $customer->birthdate?->toDateString(),
+            'gender' => $customer->gender,
+            'phone_verified_at' => $customer->phone_verified_at?->toIso8601String(),
+            'locked_fields' => $customer->locked_fields,
+            'source_utm' => $customer->source_utm,
+            'last_activity_at' => $customer->last_activity_at,
+            'created_at' => $customer->created_at,
+            'updated_at' => $customer->updated_at,
+        ]]);
     }
 
     public function destroy(string $id): JsonResponse

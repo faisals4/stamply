@@ -1,6 +1,7 @@
 import { useRoute } from 'wouter'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2, Copy, CheckCircle2, Gift, Bell } from 'lucide-react'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { useEffect, useMemo, useState } from 'react'
 import { getIssuedCard, getWalletAvailability } from '@/lib/api/misc'
 import { detectWalletTarget } from '@/lib/wallet/detectTarget'
@@ -14,7 +15,6 @@ import {
 } from '@/lib/wallet/webPush'
 import { CardVisual } from '@/components/card/CardVisual'
 import { PublicShell } from './Register'
-import { PhoneVerificationBlock } from './PhoneVerificationBlock'
 import type { CardTemplate, CardReward } from '@/types/card'
 
 /**
@@ -141,10 +141,7 @@ export default function IssuedCardPage() {
   if (isLoading) {
     return (
       <PublicShell>
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin me-2" />
-          جارٍ التحميل...
-        </div>
+        <FullPageLoader />
       </PublicShell>
     )
   }
@@ -327,19 +324,6 @@ export default function IssuedCardPage() {
             )}
           </div>
         )}
-
-        {/* Phone verification — only shown when:
-              (1) the platform operator hasn't globally disabled the
-                  feature in /op/settings (default: enabled), AND
-              (2) the customer hasn't already proven ownership of
-                  their phone via OTP.
-            Once they verify (cross-tenant), this block unmounts on
-            the next card refetch. Signup itself never blocked on
-            this; it's an opt-in trust upgrade. */}
-        {data.features?.phone_verification !== false &&
-          data.customer.phone_verified_at === null && (
-            <PhoneVerificationBlock serial={data.serial_number} />
-          )}
 
         {/* Copy-link affordance — previously lived inside the
             "مالك البطاقة" card. The customer's identity is already

@@ -42,6 +42,9 @@ Route::prefix('v1')
 
 // Public — no auth. Used by end-customer signup + PWA card view.
 Route::prefix('public')->group(function () {
+    // Promotional banners for mobile app slider
+    Route::get('/banners', [\App\Http\Controllers\Api\Op\BannerController::class, 'publicIndex']);
+
     Route::get('/cards/{template}', [PublicCardController::class, 'showTemplate']);
     Route::post('/cards/{template}/issue', [PublicCardController::class, 'issue']);
     Route::get('/issued/{serial}', [PublicCardController::class, 'showIssued']);
@@ -90,8 +93,19 @@ Route::prefix('app')->group(function () {
 
         Route::get('/cards', [AppCustomerCardsController::class, 'index']);
         Route::get('/cards/{serial}', [AppCustomerCardsController::class, 'show']);
+        Route::get('/cards/{serial}/activity', [AppCustomerCardsController::class, 'activity']);
         Route::post('/cards/{serial}/wallet/apple', [AppCustomerCardsController::class, 'walletApple']);
         Route::post('/cards/{serial}/wallet/google', [AppCustomerCardsController::class, 'walletGoogle']);
+
+        Route::get('/tenant/{tenantId}/cards', [AppCustomerCardsController::class, 'tenantCards']);
+
+        // All tenants with at least one active card — for the "discover" screen
+        Route::get('/discover/tenants', [AppCustomerCardsController::class, 'discoverTenants']);
+
+        // Favorites
+        Route::get('/favorites', [\App\Http\Controllers\Api\App\CustomerFavoritesController::class, 'index']);
+        Route::post('/favorites/{tenantId}', [\App\Http\Controllers\Api\App\CustomerFavoritesController::class, 'store']);
+        Route::delete('/favorites/{tenantId}', [\App\Http\Controllers\Api\App\CustomerFavoritesController::class, 'destroy']);
     });
 });
 
@@ -141,6 +155,37 @@ Route::prefix('op')->group(function () {
         Route::get('/tenants/{id}', [\App\Http\Controllers\Api\Op\TenantsController::class, 'show']);
         Route::patch('/tenants/{id}/toggle', [\App\Http\Controllers\Api\Op\TenantsController::class, 'toggle']);
         Route::delete('/tenants/{id}', [\App\Http\Controllers\Api\Op\TenantsController::class, 'destroy']);
+        Route::post('/tenants/{id}/impersonate', [\App\Http\Controllers\Api\Op\TenantsController::class, 'impersonate']);
+
+        // Cross-tenant customer profiles
+        Route::get('/customers', [\App\Http\Controllers\Api\Op\CustomersController::class, 'index']);
+        Route::get('/customers/{id}', [\App\Http\Controllers\Api\Op\CustomersController::class, 'show']);
+        Route::get('/customers/{id}/cards', [\App\Http\Controllers\Api\Op\CustomersController::class, 'cards']);
+
+        // Subscription management
+        Route::get('/subscriptions', [\App\Http\Controllers\Api\Op\SubscriptionController::class, 'index']);
+        Route::get('/subscriptions/{tenantId}', [\App\Http\Controllers\Api\Op\SubscriptionController::class, 'show']);
+        Route::put('/subscriptions/{tenantId}', [\App\Http\Controllers\Api\Op\SubscriptionController::class, 'update']);
+        Route::post('/subscriptions/{tenantId}/extend', [\App\Http\Controllers\Api\Op\SubscriptionController::class, 'extend']);
+        Route::get('/subscriptions/{tenantId}/logs', [\App\Http\Controllers\Api\Op\SubscriptionController::class, 'logs']);
+        Route::delete('/subscriptions/{tenantId}/logs/{logId}', [\App\Http\Controllers\Api\Op\SubscriptionController::class, 'deleteLog']);
+
+        // Plans management
+        Route::get('/plans', [\App\Http\Controllers\Api\Op\PlansController::class, 'index']);
+        Route::put('/plans/{id}', [\App\Http\Controllers\Api\Op\PlansController::class, 'update']);
+
+        // Banners (promotional images in mobile app slider)
+        Route::get('/banners', [\App\Http\Controllers\Api\Op\BannerController::class, 'index']);
+        Route::post('/banners', [\App\Http\Controllers\Api\Op\BannerController::class, 'store']);
+        Route::post('/banners/{id}', [\App\Http\Controllers\Api\Op\BannerController::class, 'update']);
+        Route::delete('/banners/{id}', [\App\Http\Controllers\Api\Op\BannerController::class, 'destroy']);
+        Route::patch('/banners/{id}/toggle', [\App\Http\Controllers\Api\Op\BannerController::class, 'toggle']);
+
+        // Customer profile unlock — clears locked_fields on a profile
+        // so a customer can retry their signup flow from scratch.
+        // Cross-tenant (profile is not scoped) — clearing locks
+        // propagates everywhere the customer is enrolled.
+        Route::post('/customers/unlock', [\App\Http\Controllers\Api\Op\CustomersController::class, 'unlock']);
     });
 });
 
@@ -153,6 +198,10 @@ Route::middleware(['auth:sanctum', 'abilities:tenant'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
+    // Subscription info for the current tenant (read-only).
+    // Outside the subscription middleware so tenants can always see their status.
+    Route::get('/subscription', [\App\Http\Controllers\Api\Tenant\SubscriptionController::class, 'show']);
+
     // Self-service profile (intentionally NOT gated by can.perm — every
     // authenticated user is allowed to manage their own profile).
     Route::get('/profile', [ProfileController::class, 'show']);
@@ -160,148 +209,147 @@ Route::middleware(['auth:sanctum', 'abilities:tenant'])->group(function () {
     Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
     Route::post('/profile/logout-all', [ProfileController::class, 'logoutAll']);
 
-    // Current tenant profile (brand info)
+    // Current tenant profile (brand info) — accessible even if expired
     Route::get('/tenant', [\App\Http\Controllers\Api\Tenant\TenantController::class, 'show']);
     Route::put('/tenant', [\App\Http\Controllers\Api\Tenant\TenantController::class, 'update']);
 
-    Route::get('/dashboard/stats', [DashboardController::class, 'stats'])
-        ->middleware('can.perm:dashboard.view');
+    // ══════════════════════════════════════════════════════════════
+    // ── Subscription-gated routes ────────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    //
+    // Middleware: `subscription` (CheckSubscription)
+    //   • Active subscription → request proceeds normally
+    //   • Expired subscription:
+    //       – GET  requests → allowed (read-only browsing)
+    //       – POST/PUT/PATCH/DELETE → blocked with 403
+    //         {error: "subscription_expired", message: "..."}
+    //
+    // Middleware: `plan.quota:{resource}` (CheckPlanQuota)
+    //   Applied on creation routes to enforce plan limits:
+    //       – plan.quota:cards     → max_cards
+    //       – plan.quota:locations → max_locations
+    //       – plan.quota:users     → max_users
+    //   Blocked with 403 {error: "plan_quota_exceeded", ...}
+    //
+    Route::middleware('subscription')->group(function () {
 
-    // Card template CRUD
-    Route::get('/cards', [CardController::class, 'index'])->middleware('can.perm:cards.view');
-    Route::get('/cards/{card}', [CardController::class, 'show'])->middleware('can.perm:cards.view');
-    Route::post('/cards', [CardController::class, 'store'])->middleware('can.perm:cards.manage');
-    Route::put('/cards/{card}', [CardController::class, 'update'])->middleware('can.perm:cards.manage');
-    Route::patch('/cards/{card}', [CardController::class, 'update'])->middleware('can.perm:cards.manage');
-    Route::delete('/cards/{card}', [CardController::class, 'destroy'])->middleware('can.perm:cards.delete');
-    // Dedicated notifications endpoints — the main PUT /cards/{id}
-    // already handles notifications inline for the unified save
-    // flow; these exist for targeted reads/writes that don't want
-    // to re-send the whole card template.
-    Route::get('/cards/{card}/notifications', [CardController::class, 'getNotifications'])->middleware('can.perm:cards.view');
-    Route::put('/cards/{card}/notifications', [CardController::class, 'updateNotifications'])->middleware('can.perm:cards.manage');
+        // ── Dashboard ────────────────────────────────────────────
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats'])
+            ->middleware('can.perm:dashboard.view');
 
-    // Customers
-    Route::get('/customers', [CustomerController::class, 'index'])->middleware('can.perm:customers.view');
-    Route::get('/customers/{customer}', [CustomerController::class, 'show'])->middleware('can.perm:customers.view');
-    Route::get('/customers/{customer}/cards/{issued}/activity', [CustomerController::class, 'cardActivity'])->middleware('can.perm:customers.view');
-    Route::post('/customers', [CustomerController::class, 'store'])->middleware('can.perm:customers.manage');
-    Route::put('/customers/{customer}', [CustomerController::class, 'update'])->middleware('can.perm:customers.manage');
-    Route::patch('/customers/{customer}', [CustomerController::class, 'update'])->middleware('can.perm:customers.manage');
-    Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->middleware('can.perm:customers.delete');
+        // ── Cards (quota: max_cards) ─────────────────────────────
+        Route::get('/cards', [CardController::class, 'index'])->middleware('can.perm:cards.view');
+        Route::get('/cards/{card}', [CardController::class, 'show'])->middleware('can.perm:cards.view');
+        Route::post('/cards', [CardController::class, 'store'])->middleware(['can.perm:cards.manage', 'plan.quota:cards']);
+        Route::put('/cards/{card}', [CardController::class, 'update'])->middleware('can.perm:cards.manage');
+        Route::patch('/cards/{card}', [CardController::class, 'update'])->middleware('can.perm:cards.manage');
+        Route::delete('/cards/{card}', [CardController::class, 'destroy'])->middleware('can.perm:cards.delete');
+        Route::get('/cards/{card}/notifications', [CardController::class, 'getNotifications'])->middleware('can.perm:cards.view');
+        Route::put('/cards/{card}/notifications', [CardController::class, 'updateNotifications'])->middleware('can.perm:cards.manage');
 
-    // Locations (Phase 4)
-    Route::get('/locations', [LocationController::class, 'index'])->middleware('can.perm:locations.view');
-    Route::get('/locations/{location}', [LocationController::class, 'show'])->middleware('can.perm:locations.view');
-    Route::post('/locations', [LocationController::class, 'store'])->middleware('can.perm:locations.manage');
-    Route::put('/locations/{location}', [LocationController::class, 'update'])->middleware('can.perm:locations.manage');
-    Route::patch('/locations/{location}', [LocationController::class, 'update'])->middleware('can.perm:locations.manage');
-    Route::delete('/locations/{location}', [LocationController::class, 'destroy'])->middleware('can.perm:locations.manage');
+        // ── Customers ────────────────────────────────────────────
+        Route::get('/customers', [CustomerController::class, 'index'])->middleware('can.perm:customers.view');
+        Route::get('/customers/{customer}', [CustomerController::class, 'show'])->middleware('can.perm:customers.view');
+        Route::get('/customers/{customer}/cards/{issued}/activity', [CustomerController::class, 'cardActivity'])->middleware('can.perm:customers.view');
+        Route::post('/customers', [CustomerController::class, 'store'])->middleware('can.perm:customers.manage');
+        Route::put('/customers/{customer}', [CustomerController::class, 'update'])->middleware('can.perm:customers.manage');
+        Route::patch('/customers/{customer}', [CustomerController::class, 'update'])->middleware('can.perm:customers.manage');
+        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->middleware('can.perm:customers.delete');
 
-    // Staff / managers / cashiers (scoped to current tenant)
-    Route::get('/staff', [StaffController::class, 'index'])->middleware('can.perm:staff.view');
-    Route::get('/staff/{id}', [StaffController::class, 'show'])->middleware('can.perm:staff.view');
-    Route::post('/staff', [StaffController::class, 'store'])->middleware('can.perm:staff.manage');
-    Route::put('/staff/{id}', [StaffController::class, 'update'])->middleware('can.perm:staff.manage');
-    Route::delete('/staff/{id}', [StaffController::class, 'destroy'])->middleware('can.perm:staff.manage');
+        // ── Locations (quota: max_locations) ─────────────────────
+        Route::get('/locations', [LocationController::class, 'index'])->middleware('can.perm:locations.view');
+        Route::get('/locations/{location}', [LocationController::class, 'show'])->middleware('can.perm:locations.view');
+        Route::post('/locations', [LocationController::class, 'store'])->middleware(['can.perm:locations.manage', 'plan.quota:locations']);
+        Route::put('/locations/{location}', [LocationController::class, 'update'])->middleware('can.perm:locations.manage');
+        Route::patch('/locations/{location}', [LocationController::class, 'update'])->middleware('can.perm:locations.manage');
+        Route::delete('/locations/{location}', [LocationController::class, 'destroy'])->middleware('can.perm:locations.manage');
 
-    // Role permissions (catalog + per-tenant overrides on tenant.settings)
-    Route::get('/permissions', [PermissionsController::class, 'index'])->middleware('can.perm:staff.permissions');
-    Route::put('/permissions/{role}', [PermissionsController::class, 'update'])->middleware('can.perm:staff.permissions');
+        // ── Staff (quota: max_users) ─────────────────────────────
+        Route::get('/staff', [StaffController::class, 'index'])->middleware('can.perm:staff.view');
+        Route::get('/staff/{id}', [StaffController::class, 'show'])->middleware('can.perm:staff.view');
+        Route::post('/staff', [StaffController::class, 'store'])->middleware(['can.perm:staff.manage', 'plan.quota:users']);
+        Route::put('/staff/{id}', [StaffController::class, 'update'])->middleware('can.perm:staff.manage');
+        Route::delete('/staff/{id}', [StaffController::class, 'destroy'])->middleware('can.perm:staff.manage');
 
-    // Broadcast messages (الرسائل) — email/SMS to customers
-    Route::middleware('can.perm:messages.send')->group(function () {
-        Route::get('/messages', [MessageController::class, 'index']);
-        // /reach MUST come before /{id} so wouter/Laravel don't
-        // capture "reach" as a message id.
-        Route::get('/messages/reach', [MessageController::class, 'reach']);
-        Route::get('/messages/reach/{channel}', [MessageController::class, 'reachableCustomers']);
-        Route::post('/messages', [MessageController::class, 'store']);
-        Route::get('/messages/{id}', [MessageController::class, 'show']);
-        Route::put('/messages/{id}', [MessageController::class, 'update']);
-        Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
-        Route::post('/messages/{id}/send', [MessageController::class, 'send']);
-    });
+        // ── Permissions ──────────────────────────────────────────
+        Route::get('/permissions', [PermissionsController::class, 'index'])->middleware('can.perm:staff.permissions');
+        Route::put('/permissions/{role}', [PermissionsController::class, 'update'])->middleware('can.perm:staff.permissions');
 
-    // Automations (الأتمتة)
-    Route::get('/automations', [AutomationController::class, 'index'])->middleware('can.perm:automations.view');
-    Route::get('/automations/presets', [AutomationController::class, 'presets'])->middleware('can.perm:automations.view');
-    Route::get('/automations/{id}', [AutomationController::class, 'show'])->middleware('can.perm:automations.view');
-    Route::get('/automations/{id}/runs', [AutomationController::class, 'runs'])->middleware('can.perm:automations.view');
-    Route::post('/automations', [AutomationController::class, 'store'])->middleware('can.perm:automations.manage');
-    Route::post('/automations/from-preset', [AutomationController::class, 'fromPreset'])->middleware('can.perm:automations.manage');
-    Route::put('/automations/{id}', [AutomationController::class, 'update'])->middleware('can.perm:automations.manage');
-    Route::patch('/automations/{id}/status', [AutomationController::class, 'updateStatus'])->middleware('can.perm:automations.manage');
-    Route::post('/automations/{id}/test', [AutomationController::class, 'test'])->middleware('can.perm:automations.manage');
-    Route::delete('/automations/{id}', [AutomationController::class, 'destroy'])->middleware('can.perm:automations.manage');
+        // ── Messages (الرسائل) ───────────────────────────────────
+        Route::middleware('can.perm:messages.send')->group(function () {
+            Route::get('/messages', [MessageController::class, 'index']);
+            Route::get('/messages/reach', [MessageController::class, 'reach']);
+            Route::get('/messages/reach/{channel}', [MessageController::class, 'reachableCustomers']);
+            Route::post('/messages', [MessageController::class, 'store']);
+            Route::get('/messages/{id}', [MessageController::class, 'show']);
+            Route::put('/messages/{id}', [MessageController::class, 'update']);
+            Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
+            Route::post('/messages/{id}/send', [MessageController::class, 'send']);
+        });
 
-    // Reports + CSV exports
-    Route::get('/reports/summary', [ReportsController::class, 'summary'])
-        ->middleware('can.perm:reports.view');
-    // Paginated drill-down reports (behind the dashboard stat cards)
-    Route::get('/reports/stamps', [ReportsController::class, 'stamps'])
-        ->middleware('can.perm:reports.view');
-    Route::get('/reports/redemptions', [ReportsController::class, 'redemptions'])
-        ->middleware('can.perm:reports.view');
-    Route::get('/reports/issued-cards', [ReportsController::class, 'issuedCards'])
-        ->middleware('can.perm:cards.view');
-    Route::get('/reports/customers.csv', [ReportsController::class, 'exportCustomers'])
-        ->middleware('can.perm:reports.export');
-    Route::get('/reports/stamps.csv', [ReportsController::class, 'exportStamps'])
-        ->middleware('can.perm:reports.export');
-    Route::get('/reports/redemptions.csv', [ReportsController::class, 'exportRedemptions'])
-        ->middleware('can.perm:reports.export');
+        // ── Automations (الأتمتة) ────────────────────────────────
+        Route::get('/automations', [AutomationController::class, 'index'])->middleware('can.perm:automations.view');
+        Route::get('/automations/presets', [AutomationController::class, 'presets'])->middleware('can.perm:automations.view');
+        Route::get('/automations/{id}', [AutomationController::class, 'show'])->middleware('can.perm:automations.view');
+        Route::get('/automations/{id}/runs', [AutomationController::class, 'runs'])->middleware('can.perm:automations.view');
+        Route::post('/automations', [AutomationController::class, 'store'])->middleware('can.perm:automations.manage');
+        Route::post('/automations/from-preset', [AutomationController::class, 'fromPreset'])->middleware('can.perm:automations.manage');
+        Route::put('/automations/{id}', [AutomationController::class, 'update'])->middleware('can.perm:automations.manage');
+        Route::patch('/automations/{id}/status', [AutomationController::class, 'updateStatus'])->middleware('can.perm:automations.manage');
+        Route::post('/automations/{id}/test', [AutomationController::class, 'test'])->middleware('can.perm:automations.manage');
+        Route::delete('/automations/{id}', [AutomationController::class, 'destroy'])->middleware('can.perm:automations.manage');
 
-    // Cashier flows
-    Route::prefix('cashier')->group(function () {
-        Route::get('/lookup/{serial}', [CashierController::class, 'lookup'])->middleware('can.perm:scan.use');
-        Route::post('/stamps', [CashierController::class, 'giveStamp'])->middleware('can.perm:scan.give_stamp');
-        Route::post('/stamps/remove', [CashierController::class, 'removeStamp'])->middleware('can.perm:scan.give_stamp');
-        Route::post('/redemptions', [CashierController::class, 'redeem'])->middleware('can.perm:scan.redeem');
+        // ── Reports ──────────────────────────────────────────────
+        Route::get('/reports/summary', [ReportsController::class, 'summary'])->middleware('can.perm:reports.view');
+        Route::get('/reports/stamps', [ReportsController::class, 'stamps'])->middleware('can.perm:reports.view');
+        Route::get('/reports/redemptions', [ReportsController::class, 'redemptions'])->middleware('can.perm:reports.view');
+        Route::get('/reports/issued-cards', [ReportsController::class, 'issuedCards'])->middleware('can.perm:cards.view');
+        Route::get('/reports/customers.csv', [ReportsController::class, 'exportCustomers'])->middleware('can.perm:reports.export');
+        Route::get('/reports/stamps.csv', [ReportsController::class, 'exportStamps'])->middleware('can.perm:reports.export');
+        Route::get('/reports/redemptions.csv', [ReportsController::class, 'exportRedemptions'])->middleware('can.perm:reports.export');
 
-        // Apple Wallet announcements — push a short message to a single
-        // cardholder or broadcast to every active card in the tenant.
-        // Both routes update the announcement back field on the pass and
-        // dispatch SendApplePassUpdate so iOS shows a lock-screen
-        // notification within seconds.
-        Route::post('/cards/announce-all', [CashierController::class, 'announceAll']);
-        Route::post('/cards/{serial}/announce', [CashierController::class, 'announce']);
-    });
+        // ── Cashier (ماسح الكاشير) ───────────────────────────────
+        Route::prefix('cashier')->group(function () {
+            Route::get('/lookup/{serial}', [CashierController::class, 'lookup'])->middleware('can.perm:scan.use');
+            Route::post('/stamps', [CashierController::class, 'giveStamp'])->middleware('can.perm:scan.give_stamp');
+            Route::post('/stamps/remove', [CashierController::class, 'removeStamp'])->middleware('can.perm:scan.give_stamp');
+            Route::post('/redemptions', [CashierController::class, 'redeem'])->middleware('can.perm:scan.redeem');
+            Route::post('/cards/announce-all', [CashierController::class, 'announceAll'])->middleware('can.perm:messages.send');
+            Route::post('/cards/{serial}/announce', [CashierController::class, 'announce'])->middleware('can.perm:messages.send');
+        });
 
-    // Integrations (email, sms, ...)
-    Route::prefix('integrations')->middleware('can.perm:settings.integrations')->group(function () {
-        Route::get('/email', [IntegrationsController::class, 'showEmail']);
-        Route::put('/email', [IntegrationsController::class, 'updateEmail']);
-        Route::post('/email/test', [IntegrationsController::class, 'testEmail']);
+        // ── Integrations (البريد، الرسائل النصية، التنبيهات) ─────
+        Route::prefix('integrations')->middleware('can.perm:settings.integrations')->group(function () {
+            Route::get('/email', [IntegrationsController::class, 'showEmail']);
+            Route::put('/email', [IntegrationsController::class, 'updateEmail']);
+            Route::post('/email/test', [IntegrationsController::class, 'testEmail']);
+            Route::get('/sms', [IntegrationsController::class, 'showSms']);
+            Route::put('/sms', [IntegrationsController::class, 'updateSms']);
+            Route::post('/sms/test', [IntegrationsController::class, 'testSms']);
+            Route::get('/push', [IntegrationsController::class, 'showPush']);
+            Route::put('/push', [IntegrationsController::class, 'updatePush']);
+        });
 
-        Route::get('/sms', [IntegrationsController::class, 'showSms']);
-        Route::put('/sms', [IntegrationsController::class, 'updateSms']);
-        Route::post('/sms/test', [IntegrationsController::class, 'testSms']);
+        // ── Templates (قوالب البريد/الرسائل/التنبيهات) ───────────
+        Route::middleware('can.perm:settings.templates')->group(function () {
+            Route::get('/email-templates', [EmailTemplateController::class, 'index']);
+            Route::get('/email-templates/{key}', [EmailTemplateController::class, 'show']);
+            Route::put('/email-templates/{key}', [EmailTemplateController::class, 'update']);
+            Route::post('/email-templates/{key}/reset', [EmailTemplateController::class, 'reset']);
+            Route::post('/email-templates/{key}/test', [EmailTemplateController::class, 'test']);
 
-        Route::get('/push', [IntegrationsController::class, 'showPush']);
-        Route::put('/push', [IntegrationsController::class, 'updatePush']);
-    });
+            Route::get('/sms-templates', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'index']);
+            Route::get('/sms-templates/{key}', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'show']);
+            Route::put('/sms-templates/{key}', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'update']);
+            Route::post('/sms-templates/{key}/reset', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'reset']);
+            Route::post('/sms-templates/{key}/test', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'test']);
 
-    // Email templates (welcome, birthday, winback, redemption, campaign)
-    Route::middleware('can.perm:settings.templates')->group(function () {
-        Route::get('/email-templates', [EmailTemplateController::class, 'index']);
-        Route::get('/email-templates/{key}', [EmailTemplateController::class, 'show']);
-        Route::put('/email-templates/{key}', [EmailTemplateController::class, 'update']);
-        Route::post('/email-templates/{key}/reset', [EmailTemplateController::class, 'reset']);
-        Route::post('/email-templates/{key}/test', [EmailTemplateController::class, 'test']);
+            Route::get('/push-templates', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'index']);
+            Route::get('/push-templates/{key}', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'show']);
+            Route::put('/push-templates/{key}', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'update']);
+            Route::post('/push-templates/{key}/reset', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'reset']);
+            Route::post('/push-templates/{key}/test', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'test']);
+        });
 
-        // SMS templates — mirror of email templates
-        Route::get('/sms-templates', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'index']);
-        Route::get('/sms-templates/{key}', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'show']);
-        Route::put('/sms-templates/{key}', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'update']);
-        Route::post('/sms-templates/{key}/reset', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'reset']);
-        Route::post('/sms-templates/{key}/test', [\App\Http\Controllers\Api\Tenant\SmsTemplateController::class, 'test']);
-
-        // Push templates — mirror sms_templates
-        Route::get('/push-templates', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'index']);
-        Route::get('/push-templates/{key}', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'show']);
-        Route::put('/push-templates/{key}', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'update']);
-        Route::post('/push-templates/{key}/reset', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'reset']);
-        Route::post('/push-templates/{key}/test', [\App\Http\Controllers\Api\Tenant\PushTemplateController::class, 'test']);
-    });
+    }); // end subscription-gated group
 });

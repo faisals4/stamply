@@ -28,6 +28,7 @@ export const ar: Dict = {
   managers: 'المستخدمون',
   reports: 'التقارير',
   settings: 'الإعدادات',
+  subscription: 'الاشتراك',
 
   // Dashboard
   welcomeBack: 'أهلاً بعودتك',

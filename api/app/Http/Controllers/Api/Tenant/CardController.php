@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\PaginatesResponses;
 use App\Jobs\SendApplePassUpdate;
 use App\Jobs\SendGooglePassUpdate;
 use App\Models\CardTemplate;
@@ -13,17 +14,24 @@ use Illuminate\Http\Request;
 
 class CardController extends Controller
 {
+    use PaginatesResponses;
+
     /**
      * GET /api/cards
      * List card templates for the current tenant (scoped via BelongsToTenant).
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $cards = CardTemplate::with(['rewards', 'locations:id'])
-            ->orderByDesc('updated_at')
-            ->get();
+        $query = CardTemplate::with(['rewards', 'locations:id'])
+            ->orderByDesc('updated_at');
 
-        return response()->json(['data' => $cards]);
+        if ($search = $request->query('q')) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        $paginator = $query->paginate($this->resolvePerPage($request));
+
+        return $this->paginated($paginator);
     }
 
     /**

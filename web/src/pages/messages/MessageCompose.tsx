@@ -23,6 +23,7 @@ import {
 import { MessageContentEditor } from '@/components/messaging/MessageContentEditor'
 import { ReachStatCards } from '@/components/messaging/ReachStatCards'
 import { BackButton } from '@/components/ui/back-button'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 
 const VARIABLES = {
   'customer.first_name': 'الاسم الأول',
@@ -35,7 +36,7 @@ const VARIABLES = {
 const DEFAULT_SMS = 'مرحبا {{customer.first_name}}، شكراً لك على ولائك لـ {{brand.name}}!'
 
 const DEFAULT_EMAIL_HTML = `<div style="font-family: -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1f2937;">
-  <h1 style="color: #003bc0; margin: 0 0 16px;">مرحباً {{customer.first_name}}!</h1>
+  <h1 style="color: #8B52F6; margin: 0 0 16px;">مرحباً {{customer.first_name}}!</h1>
   <p style="font-size: 16px; line-height: 1.6;">
     شكراً لك على ولائك لـ <strong>{{brand.name}}</strong>. لدينا عرض خاص اليوم نتمنى أن يعجبك.
   </p>
@@ -55,6 +56,7 @@ const DEFAULT_EMAIL_HTML = `<div style="font-family: -apple-system, 'Segoe UI', 
 export default function MessageComposePage() {
   const [, setLocation] = useLocation()
   const qc = useQueryClient()
+  const guard = useSubscriptionGuard()
 
   const [channel, setChannel] = useState<MessageChannel>('sms')
   const [audience, setAudience] = useState<MessageAudience>('all')
@@ -242,8 +244,9 @@ export default function MessageComposePage() {
               </div>
               <Button
                 type="button"
-                onClick={() => sendMutation.mutate()}
+                onClick={() => guard.blocked ? alert(guard.message) : sendMutation.mutate()}
                 disabled={sendMutation.isPending || recipientPreview === 0}
+                className={guard.blocked ? 'opacity-60' : ''}
               >
                 {sendMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin me-1.5" />
@@ -254,7 +257,12 @@ export default function MessageComposePage() {
               </Button>
             </div>
           ) : (
-            <Button type="submit" disabled={createMutation.isPending}>
+            <Button
+              type={guard.blocked ? 'button' : 'submit'}
+              disabled={createMutation.isPending}
+              onClick={guard.blocked ? () => alert(guard.message) : undefined}
+              className={guard.blocked ? 'opacity-60' : ''}
+            >
               {createMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin me-1.5" />
               ) : (

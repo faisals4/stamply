@@ -38,14 +38,10 @@ export interface EditButtonProps {
 }
 
 const BASE_CLASSES =
-  'w-10 h-10 sm:w-9 sm:h-9 inline-flex items-center justify-center rounded-md border bg-card text-muted-foreground shrink-0 transition-colors ' +
-  // Blue hover state. The `[&:hover_svg]:text-white` selector is the
-  // same trick used in DeleteButton — it forces lucide-react strokes
-  // to follow the text colour even when React hasn't repainted the
-  // parent's text-color class.
-  'hover:bg-primary hover:text-white hover:border-primary [&:hover>svg]:text-white [&:hover_svg]:text-white ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ' +
-  'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:text-muted-foreground disabled:hover:border-border'
+  'w-12 h-12 sm:w-10 sm:h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] shrink-0 transition-all duration-200 ' +
+  'hover:bg-[#8B52F6] hover:text-white [&:hover>svg]:text-white [&:hover_svg]:text-white ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B52F6] focus-visible:ring-offset-2 ' +
+  'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-[#635C70]'
 
 export function EditButton({
   href,

@@ -31,3 +31,21 @@ export function LoadingBlock({ label = 'جارٍ التحميل...' }: { label?:
     </div>
   )
 }
+
+/**
+ * Full-page centered loading spinner — matches the mobile app's
+ * ActivityIndicator. Just a spinning circle, no text.
+ *
+ * Usage:
+ *   if (isLoading) return <FullPageLoader />
+ */
+export function FullPageLoader() {
+  return (
+    <div className="flex flex-1 min-h-[60vh] items-center justify-center">
+      <div className="relative">
+        <div className="w-8 h-8 rounded-full border-[3px] border-muted" />
+        <div className="absolute inset-0 w-8 h-8 rounded-full border-[3px] border-primary border-t-transparent animate-spin" />
+      </div>
+    </div>
+  )
+}

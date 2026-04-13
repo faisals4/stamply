@@ -116,14 +116,18 @@ class DashboardController extends Controller
                 $window->push(['m' => $d->month, 'd' => $d->day]);
             }
 
-            $query = Customer::query()->whereNotNull('birthdate');
-            $query->where(function ($q) use ($window) {
-                foreach ($window as $point) {
-                    $q->orWhere(function ($inner) use ($point) {
-                        $inner->whereRaw('EXTRACT(MONTH FROM birthdate) = ?', [$point['m']])
-                            ->whereRaw('EXTRACT(DAY FROM birthdate) = ?', [$point['d']]);
+            // birthdate lives on customer_profiles; pivot via whereHas
+            // so the outer tenant scope still applies to customers.
+            $query = Customer::query()->whereHas('profile', function ($q) use ($window) {
+                $q->whereNotNull('birthdate')
+                    ->where(function ($inner) use ($window) {
+                        foreach ($window as $point) {
+                            $inner->orWhere(function ($w) use ($point) {
+                                $w->whereRaw('EXTRACT(MONTH FROM birthdate) = ?', [$point['m']])
+                                    ->whereRaw('EXTRACT(DAY FROM birthdate) = ?', [$point['d']]);
+                            });
+                        }
                     });
-                }
             });
 
             return $query->count();
@@ -134,9 +138,10 @@ class DashboardController extends Controller
         $count = 0;
         for ($i = 0; $i < 7; $i++) {
             $d = $today->copy()->addDays($i);
-            $count += Customer::whereMonth('birthdate', $d->month)
+            $count += Customer::whereHas('profile', fn ($q) => $q
+                ->whereMonth('birthdate', $d->month)
                 ->whereDay('birthdate', $d->day)
-                ->count();
+            )->count();
         }
         return $count;
     }

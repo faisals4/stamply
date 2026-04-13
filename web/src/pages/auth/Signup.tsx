@@ -34,12 +34,10 @@ export default function SignupPage() {
       const slug = v
         .toLowerCase()
         .trim()
-        .replace(/[^\w\u0600-\u06ff\s-]/g, '') // keep Latin + Arabic + space + dash
+        .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
-        // Drop any char that's not [a-z0-9-]
-        .replace(/[^a-z0-9-]/g, '')
-        .slice(0, 40)
+        .slice(0, 20)
       setSubdomain(slug)
     }
   }
@@ -120,9 +118,11 @@ export default function SignupPage() {
                 required
                 value={subdomain}
                 onChange={(e) => {
-                  setSubdomain(e.target.value.toLowerCase())
+                  const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 20)
+                  setSubdomain(clean)
                   setSubdomainTouched(true)
                 }}
+                maxLength={20}
                 pattern="[a-z0-9-]+"
                 placeholder="my-cafe"
                 dir="ltr"
@@ -155,7 +155,7 @@ export default function SignupPage() {
                   autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.replace(/[^a-zA-Z0-9@._+-]/g, '').replace(/\s/g, ''))}
                   dir="ltr"
                   className="mt-1.5"
                 />

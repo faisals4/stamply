@@ -1,6 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 
+export interface SubscriptionExpiredData {
+  plan: string
+  expired_at: string | null
+  is_trial: boolean
+  message: string
+  trial_started_at?: string
+  trial_days_total?: number
+  trial_days_used?: number
+  subscription_starts_at?: string
+}
+
 export interface User {
   id: number
   name: string
@@ -9,6 +20,8 @@ export interface User {
   role?: string
   /** Allowed permission keys, returned by /api/login and /api/me. */
   permissions?: string[]
+  /** Present when the tenant's subscription/trial has expired. */
+  subscription_expired_data?: SubscriptionExpiredData
 }
 
 interface AuthContext {
@@ -29,14 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('stamply.token')
-    const savedUser = localStorage.getItem('stamply.user')
+    // In embed mode (mobile app iframe), read merchant credentials
+    // directly so we never touch the customer's stamply.token.
+    const isEmbed = sessionStorage.getItem('stamply.embed') === '1'
+    const tokenKey = isEmbed ? 'stamply.merchant.token' : 'stamply.token'
+    const userKey = isEmbed ? 'stamply.merchant.user' : 'stamply.user'
+
+    const savedToken = localStorage.getItem(tokenKey)
+    const savedUser = localStorage.getItem(userKey)
     if (savedToken && savedUser) {
       setToken(savedToken)
       try {
         setUser(JSON.parse(savedUser))
       } catch {
-        localStorage.removeItem('stamply.user')
+        localStorage.removeItem(userKey)
       }
 
       // Refresh user (especially permissions) from the server in the
@@ -46,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((res) => {
           const fresh = res.data as User
           setUser(fresh)
-          localStorage.setItem('stamply.user', JSON.stringify(fresh))
+          localStorage.setItem(userKey, JSON.stringify(fresh))
         })
         .catch(() => {
           // 401 → handled by axios interceptor → already redirects to login
@@ -56,18 +75,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = (newToken: string, newUser: User) => {
-    localStorage.setItem('stamply.token', newToken)
-    localStorage.setItem('stamply.user', JSON.stringify(newUser))
+    const isEmbed = sessionStorage.getItem('stamply.embed') === '1'
+
+    // Always write to the merchant-specific key.
+    localStorage.setItem('stamply.merchant.token', newToken)
+    localStorage.setItem('stamply.merchant.user', JSON.stringify(newUser))
+
+    if (isEmbed) {
+      // Embedded in mobile app — do NOT touch stamply.token (customer's key).
+    } else {
+      // Direct dashboard access — save the customer token before
+      // overwriting so it can be restored on logout.
+      const existingCustomerToken = localStorage.getItem('stamply.token')
+      const existingCustomerUser = localStorage.getItem('stamply.customer')
+      if (existingCustomerToken) {
+        localStorage.setItem('stamply._saved_customer_token', existingCustomerToken)
+      }
+      if (existingCustomerUser) {
+        localStorage.setItem('stamply._saved_customer_user', existingCustomerUser)
+      }
+      localStorage.setItem('stamply.token', newToken)
+      localStorage.setItem('stamply.user', JSON.stringify(newUser))
+    }
+
     setToken(newToken)
     setUser(newUser)
   }
 
   const logout = () => {
-    localStorage.removeItem('stamply.token')
-    localStorage.removeItem('stamply.user')
+    const isEmbed = sessionStorage.getItem('stamply.embed') === '1'
+
+    localStorage.removeItem('stamply.merchant.token')
+    localStorage.removeItem('stamply.merchant.user')
+
+    if (!isEmbed) {
+      // Restore the customer token if we saved one during login.
+      const savedToken = localStorage.getItem('stamply._saved_customer_token')
+      const savedUser = localStorage.getItem('stamply._saved_customer_user')
+      if (savedToken) {
+        localStorage.setItem('stamply.token', savedToken)
+        localStorage.removeItem('stamply._saved_customer_token')
+      } else {
+        localStorage.removeItem('stamply.token')
+      }
+      if (savedUser) {
+        localStorage.setItem('stamply.customer', savedUser)
+        localStorage.removeItem('stamply._saved_customer_user')
+      }
+      localStorage.removeItem('stamply.user')
+    }
+
     setToken(null)
     setUser(null)
-    window.location.href = '/admin/login'
+    if (!isEmbed) window.location.href = '/admin/login'
   }
 
   const can = useCallback(

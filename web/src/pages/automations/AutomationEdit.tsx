@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { useLocation, useRoute } from 'wouter'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
@@ -41,6 +42,7 @@ import {
 } from '@/lib/api/automations'
 import { AutomationRuns } from './AutomationRuns'
 import { BackButton } from '@/components/ui/back-button'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 
 /**
  * /admin/automations/new and /admin/automations/:id
@@ -58,6 +60,7 @@ export default function AutomationEditPage() {
   const [, params] = useRoute('/admin/automations/:id')
   const id = isNewRoute ? null : params?.id
   const qc = useQueryClient()
+  const guard = useSubscriptionGuard()
 
   const { data: automation, isLoading } = useQuery({
     queryKey: ['automations', 'detail', id],
@@ -155,7 +158,7 @@ export default function AutomationEditPage() {
   }
 
   if (isLoading && id) {
-    return <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+    return <FullPageLoader />
   }
 
   const status: AutomationStatus = automation?.status ?? 'draft'
@@ -214,7 +217,7 @@ export default function AutomationEditPage() {
       {/* Bottom action bar — sticky for convenience */}
       {(!id || activeTab === 'editor') && (
         <div className="mt-6 rounded-xl border bg-card p-4 flex items-center gap-3 flex-wrap sticky bottom-4">
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button onClick={() => guard.blocked ? alert(guard.message) : saveMutation.mutate()} disabled={saveMutation.isPending} className={guard.blocked ? 'opacity-60' : ''}>
             {saveMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin me-1.5" />
             ) : (
@@ -228,9 +231,9 @@ export default function AutomationEditPage() {
               {status === 'draft' || status === 'paused' ? (
                 <Button
                   variant="outline"
-                  onClick={() => statusMutation.mutate('active')}
+                  onClick={() => guard.blocked ? alert(guard.message) : statusMutation.mutate('active')}
                   disabled={statusMutation.isPending}
-                  className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                  className={cn('border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10', guard.blocked && 'opacity-60')}
                 >
                   <PlayCircle className="w-4 h-4 me-1.5" />
                   تفعيل
@@ -238,9 +241,9 @@ export default function AutomationEditPage() {
               ) : (
                 <Button
                   variant="outline"
-                  onClick={() => statusMutation.mutate('paused')}
+                  onClick={() => guard.blocked ? alert(guard.message) : statusMutation.mutate('paused')}
                   disabled={statusMutation.isPending}
-                  className="border-amber-500/40 text-amber-700 hover:bg-amber-500/10"
+                  className={cn('border-amber-500/40 text-amber-700 hover:bg-amber-500/10', guard.blocked && 'opacity-60')}
                 >
                   <Pause className="w-4 h-4 me-1.5" />
                   إيقاف مؤقت
@@ -249,8 +252,9 @@ export default function AutomationEditPage() {
 
               <Button
                 variant="outline"
-                onClick={() => testMutation.mutate()}
+                onClick={() => guard.blocked ? alert(guard.message) : testMutation.mutate()}
                 disabled={testMutation.isPending}
+                className={guard.blocked ? 'opacity-60' : ''}
               >
                 {testMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin me-1.5" />
@@ -396,7 +400,7 @@ function TriggerPicker({
       icon: UserPlus,
       title: 'عميل جديد',
       desc: 'ينطلق فور تسجيل عميل جديد لبطاقتك',
-      color: 'text-blue-500',
+      color: 'text-violet-500',
     },
     {
       key: 'birthday',
@@ -445,7 +449,7 @@ function TriggerPicker({
 
 const STEP_META: Record<AutomationStepType, { icon: typeof Send; title: string; color: string }> = {
   send_sms: { icon: Send, title: 'إرسال SMS', color: 'text-emerald-500' },
-  send_email: { icon: Mail, title: 'إرسال بريد', color: 'text-blue-500' },
+  send_email: { icon: Mail, title: 'إرسال بريد', color: 'text-violet-500' },
   send_push: { icon: Bell, title: 'إرسال تنبيه', color: 'text-amber-500' },
   add_stamps: { icon: StampIcon, title: 'منح أختام', color: 'text-amber-500' },
   wait: { icon: Clock, title: 'انتظار', color: 'text-purple-500' },

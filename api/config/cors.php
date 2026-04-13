@@ -22,6 +22,9 @@ return [
     'allowed_origins' => [
         'http://localhost:5190',
         'http://127.0.0.1:5190',
+        // Expo web dev server (mobile/)
+        'http://localhost:8081',
+        'http://127.0.0.1:8081',
     ],
 
     'allowed_origins_patterns' => [],

@@ -16,10 +16,18 @@ import { getDashboardStats } from '@/lib/api/dashboard'
 import { StatCard } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { ReachStatCards } from '@/components/messaging/ReachStatCards'
+import { TrialExpiredBanner, SubscriptionExpiringBanner } from '@/components/banners/TrialExpiredBanner'
 
 export default function DashboardPage() {
   const { t } = useI18n()
   const { user } = useAuth()
+  const expiredData = (user as Record<string, unknown>)?.subscription_expired_data as
+    | import('@/lib/auth/auth').SubscriptionExpiredData
+    | undefined
+  const subscription = (user as Record<string, unknown>)?.subscription as
+    | { days_remaining?: number }
+    | undefined
+  const daysRemaining = subscription?.days_remaining
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -36,14 +44,20 @@ export default function DashboardPage() {
         subtitle={t('dashboard')}
       />
 
+      {expiredData
+        ? <TrialExpiredBanner data={expiredData} />
+        : daysRemaining != null && daysRemaining <= 15
+          ? <SubscriptionExpiringBanner daysRemaining={daysRemaining} />
+          : null}
+
       {/* Top stats row — every card links to a drill-down report */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           label="إجمالي العملاء"
           value={stats?.customers}
           loading={isLoading}
           showTrendingIcon
-          icon={<Users className="w-5 h-5 text-blue-500" />}
+          icon={<Users className="w-5 h-5 text-violet-500" />}
           sublabel={
             stats && stats.new_customers_today > 0
               ? `+${stats.new_customers_today} اليوم`
@@ -93,7 +107,7 @@ export default function DashboardPage() {
       {/* Secondary insights — numbers are clickable links to filtered lists */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 sm:mb-8">
         <InsightCard
-          icon={<Activity className="w-5 h-5 text-blue-500" />}
+          icon={<Activity className="w-5 h-5 text-violet-500" />}
           title="النشاط الأسبوعي"
           lines={[
             {

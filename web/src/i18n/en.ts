@@ -25,6 +25,7 @@ export const en: Dict = {
   managers: 'Users',
   reports: 'Reports',
   settings: 'Settings',
+  subscription: 'Subscription',
 
   welcomeBack: 'Welcome back',
   totalRevenue: 'Total Revenue',

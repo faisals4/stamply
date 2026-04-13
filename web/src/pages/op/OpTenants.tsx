@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation } from 'wouter'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { Pagination } from '@/components/ui/pagination'
@@ -10,14 +10,14 @@ import {
   Building2,
   CheckCircle2,
   XCircle,
-  MoreVertical,
+  LogIn,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import {
   listOpTenants,
-  toggleOpTenant,
+  impersonateTenant,
   type OpTenantListItem,
 } from '@/lib/api/op'
 import { cn } from '@/lib/utils'
@@ -47,15 +47,17 @@ export default function OpTenantsPage() {
   const tenants = data?.data ?? []
   const meta = data?.meta
 
-  const toggleMutation = useMutation({
-    mutationFn: toggleOpTenant,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['op-tenants'] }),
-  })
-
-  const handleToggle = (t: OpTenantListItem) => {
-    const action = t.is_active ? 'تعطيل' : 'تفعيل'
-    if (!confirm(`${action} التاجر "${t.name}"؟`)) return
-    toggleMutation.mutate(t.id)
+  const handleImpersonate = async (e: React.MouseEvent, t: OpTenantListItem) => {
+    e.stopPropagation()
+    try {
+      const { token, user } = await impersonateTenant(t.id)
+      // Store merchant credentials and open admin dashboard in new tab
+      localStorage.setItem('stamply.token', token)
+      localStorage.setItem('stamply.user', JSON.stringify(user))
+      window.open('/admin', '_blank')
+    } catch {
+      alert('تعذر الدخول — تحقق من وجود مدير للمتجر')
+    }
   }
 
   return (
@@ -179,14 +181,12 @@ export default function OpTenantsPage() {
                   <td className="px-4 py-3">
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleToggle(t)
-                      }}
-                      className="text-muted-foreground hover:text-foreground"
+                      variant="outline"
+                      onClick={(e) => handleImpersonate(e, t)}
+                      className="text-xs gap-1.5"
                     >
-                      <MoreVertical className="w-4 h-4" />
+                      <LogIn className="w-3.5 h-3.5" />
+                      دخول
                     </Button>
                   </td>
                 </tr>

@@ -707,7 +707,7 @@ function ColorInput({
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-10 h-9 rounded border border-input cursor-pointer"
+          className="w-9 h-9 shrink-0 rounded border border-input cursor-pointer"
         />
         <input
           type="text"

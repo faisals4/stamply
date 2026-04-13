@@ -24,9 +24,23 @@ export default defineConfig({
     // and the API live at the same origin behind a single tunnel. This
     // is the simplest way to give Apple Wallet ONE webServiceURL that
     // returns both the .pkpass HTML page and the JSON web service.
+    //
+    // `/app/*` is also proxied to Laravel so the exported Expo web
+    // build (served by Laravel from `api/public/app/`) lives at the
+    // same origin as the merchant SPA and the API. This gives the
+    // customer mobile app its public URL at
+    // `https://stamply.ngrok.app/app`.
     allowedHosts: ['localhost', '.ngrok.app', '.ngrok-free.dev', '.ngrok-free.app'],
     proxy: {
       '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/app': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/storage': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },

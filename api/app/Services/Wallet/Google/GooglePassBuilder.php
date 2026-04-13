@@ -51,7 +51,9 @@ class GooglePassBuilder
             'template.rewards',
             'template.tenant',
             'template.locations',
-            'customer',
+            // Profile carries first_name / last_name / phone used
+            // in the loyalty object's secondary text fields.
+            'customer.profile',
         ]);
 
         $class = $this->buildLoyaltyClass();
@@ -83,7 +85,9 @@ class GooglePassBuilder
             'template.rewards',
             'template.tenant',
             'template.locations',
-            'customer',
+            // Profile carries first_name / last_name / phone used
+            // in the loyalty object's secondary text fields.
+            'customer.profile',
         ]);
 
         $this->api->upsertLoyaltyClass($this->buildLoyaltyClass());

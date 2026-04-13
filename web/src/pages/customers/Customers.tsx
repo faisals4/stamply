@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { Users, Phone, Mail } from 'lucide-react'
+import { Users, Phone, Mail, BadgeCheck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar-img'
 import { Pagination } from '@/components/ui/pagination'
@@ -138,7 +138,15 @@ export default function CustomersPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <Avatar name={c.full_name} email={c.email} size={32} />
-                      <div className="font-medium">{c.full_name}</div>
+                      <div className="font-medium flex items-center gap-1.5">
+                        {c.full_name}
+                        {c.phone_verified_at ? (
+                          <BadgeCheck
+                            className="w-3.5 h-3.5 text-brand shrink-0"
+                            aria-label="رقم الجوال موثّق"
+                          />
+                        ) : null}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs" dir="ltr">

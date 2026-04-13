@@ -31,6 +31,7 @@ class IssuedCard extends Model
         'installed_at',
         'last_used_at',
         'expires_at',
+        'source_utm',
     ];
 
     protected $casts = [

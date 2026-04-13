@@ -73,9 +73,17 @@ class WalletController extends Controller
             $builder = new ApplePassBuilder($card);
             $bytes = $builder->signPkPass();
 
+            // `inline` (not `attachment`) so Safari on iPhone /
+            // iPad / macOS hands the pass off to Wallet instead of
+            // forcing a download. Wallet keys off Content-Type
+            // `application/vnd.apple.pkpass` as long as the
+            // browser doesn't see `Content-Disposition: attachment`.
+            // On desktop Chrome/Firefox the file is saved via the
+            // `filename` hint as a fallback — they don't support
+            // Wallet anyway.
             $headers = [
                 'Content-Type' => 'application/vnd.apple.pkpass',
-                'Content-Disposition' => "attachment; filename=\"stamply-{$serial}.pkpass\"",
+                'Content-Disposition' => "inline; filename=\"stamply-{$serial}.pkpass\"",
             ];
 
             // Heads-up header so anyone curl-ing the dev .pkpass knows

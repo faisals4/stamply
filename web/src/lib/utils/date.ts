@@ -14,7 +14,7 @@
 
 type DateInput = string | number | Date | null | undefined
 
-const LOCALE = 'ar-SA-u-nu-latn'
+const LOCALE = 'ar-SA-u-nu-latn-ca-gregory'
 
 /** "25/4/2026، 02:30" — date + time, short form. */
 export function formatDateTime(input: DateInput, fallback = '—'): string {

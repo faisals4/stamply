@@ -273,6 +273,7 @@ export interface UpdateCustomerInput {
   email?: string | null
   phone?: string
   birthdate?: string | null
+  gender?: 'male' | 'female' | null
 }
 
 export async function updateCustomer(

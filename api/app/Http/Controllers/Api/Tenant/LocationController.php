@@ -3,17 +3,29 @@
 namespace App\Http\Controllers\Api\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\PaginatesResponses;
 use App\Models\Location;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
-    public function index(): JsonResponse
-    {
-        $locations = Location::orderBy('name')->get();
+    use PaginatesResponses;
 
-        return response()->json(['data' => $locations]);
+    public function index(Request $request): JsonResponse
+    {
+        $query = Location::orderBy('name');
+
+        if ($search = $request->query('q')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        $paginator = $query->paginate($this->resolvePerPage($request));
+
+        return $this->paginated($paginator);
     }
 
     public function store(Request $request): JsonResponse

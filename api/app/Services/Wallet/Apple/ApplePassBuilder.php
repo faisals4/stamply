@@ -122,7 +122,10 @@ class ApplePassBuilder
             'template.rewards',
             'template.tenant',
             'template.locations',
-            'customer',
+            // Profile carries the customer's personal fields
+            // (first_name, last_name, phone) that we render on
+            // the pass secondary fields.
+            'customer.profile',
         ]);
 
         $template = $this->card->template;

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Events\CardIssued;
 use App\Events\StampGiven;
 use App\Listeners\AutomationDispatcher;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,5 +29,12 @@ class AppServiceProvider extends ServiceProvider
         // legacy EventServiceProvider in Laravel 11.
         Event::listen(CardIssued::class, [AutomationDispatcher::class, 'handleCardIssued']);
         Event::listen(StampGiven::class, [AutomationDispatcher::class, 'handleStampGiven']);
+
+        // Strict eager-loading in non-production so the
+        // central-profile refactor doesn't quietly accumulate N+1
+        // queries from `customer->profile` proxy reads. Any lazy
+        // load on a missing relation throws LazyLoadingViolation in
+        // dev/testing — safe in prod (disabled) to avoid 500s.
+        Model::preventLazyLoading(! app()->isProduction());
     }
 }

@@ -3,6 +3,7 @@ import { useLocation, useRoute } from 'wouter'
 import { useQuery } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 import { Loader2 } from 'lucide-react'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { getPublicTemplate, issueCard } from '@/lib/api/misc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,10 +49,11 @@ export default function PublicRegisterPage() {
       return
     }
 
-    // Map dynamic field values into the API's input shape
-    const name = (values.name ?? '').trim()
-    const [firstName, ...rest] = name.split(/\s+/)
-    const lastName = rest.join(' ')
+    // Map dynamic field values into the API's input shape.
+    // The "name" field renders as two side-by-side inputs
+    // (first_name + last_name) and is stored as such.
+    const firstName = (values.first_name ?? '').trim()
+    const lastName = (values.last_name ?? '').trim()
 
     setSubmitting(true)
     try {
@@ -62,7 +64,7 @@ export default function PublicRegisterPage() {
         last_name: lastName || undefined,
         email: values.email?.trim() || undefined,
         birthdate: values.birthdate || undefined,
-        source_utm: utm,
+        source_utm: utm ?? 'website',
       })
       setLocation(`/i/${res.serial_number}`)
     } catch (err) {
@@ -83,10 +85,7 @@ export default function PublicRegisterPage() {
   if (isLoading) {
     return (
       <PublicShell>
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin me-2" />
-          جارٍ التحميل...
-        </div>
+        <FullPageLoader />
       </PublicShell>
     )
   }
@@ -236,6 +235,45 @@ export default function PublicRegisterPage() {
                         عدد الأرقام غير مطابق لرمز الدولة
                       </p>
                     )}
+                  </div>
+                )
+              }
+
+              // Split the "name" field into first/last name side-by-side
+              // — matches how the customer is stored in the backend.
+              if (field.key === 'name') {
+                return (
+                  <div key={field.key} className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="field-first_name">
+                        الاسم الأول
+                        {field.required && ' *'}
+                      </Label>
+                      <Input
+                        id="field-first_name"
+                        type="text"
+                        autoComplete="given-name"
+                        required={field.required}
+                        value={values.first_name ?? ''}
+                        onChange={(e) => setField('first_name', e.target.value)}
+                        className="mt-1.5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="field-last_name">
+                        اسم العائلة
+                        {field.required && ' *'}
+                      </Label>
+                      <Input
+                        id="field-last_name"
+                        type="text"
+                        autoComplete="family-name"
+                        required={field.required}
+                        value={values.last_name ?? ''}
+                        onChange={(e) => setField('last_name', e.target.value)}
+                        className="mt-1.5"
+                      />
+                    </div>
                   </div>
                 )
               }

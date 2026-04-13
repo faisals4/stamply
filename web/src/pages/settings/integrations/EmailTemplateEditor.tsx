@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { useRoute } from 'wouter'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
@@ -102,7 +103,7 @@ export default function EmailTemplateEditorPage() {
   })
 
   if (isLoading || !template) {
-    return <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+    return <FullPageLoader />
   }
 
   return (

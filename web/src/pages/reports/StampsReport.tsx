@@ -117,7 +117,7 @@ export default function StampsReportPage() {
       />
 
       {/* Filters */}
-      <div className="rounded-xl border bg-card p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="rounded-xl border bg-card p-4 mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div>
           <Label className="text-xs text-muted-foreground">بحث (اسم أو رقم العميل)</Label>
           <SearchInput

@@ -148,7 +148,13 @@ class AutomationController extends Controller
     {
         $automation = Automation::findOrFail($id);
         $query = AutomationRun::query()
-            ->with(['customer:id,first_name,last_name,phone', 'logs'])
+            // Personal fields (first_name, last_name, phone) moved
+            // to customer_profiles — split the eager load in two.
+            ->with([
+                'customer:id,tenant_id,customer_profile_id',
+                'customer.profile:id,phone,first_name,last_name',
+                'logs',
+            ])
             ->where('automation_id', $automation->id)
             ->orderByDesc('started_at');
 

@@ -35,12 +35,12 @@ export default function OpDashboardPage() {
       />
 
       {/* Top stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           label="إجمالي التجار"
           value={stats?.tenants_total}
           loading={isLoading}
-          icon={<Building2 className="w-5 h-5 text-blue-500" />}
+          icon={<Building2 className="w-5 h-5 text-violet-500" />}
           sublabel={
             stats
               ? `${stats.tenants_active} نشط • +${stats.tenants_new_month} هذا الشهر`
@@ -73,7 +73,7 @@ export default function OpDashboardPage() {
       {/* Secondary */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <InsightCard
-          icon={<TrendingUp className="w-5 h-5 text-blue-500" />}
+          icon={<TrendingUp className="w-5 h-5 text-violet-500" />}
           title="النشاط الأسبوعي"
           lines={[
             { label: 'تجار نشطون هذا الأسبوع', value: stats?.active_tenants_week ?? 0 },

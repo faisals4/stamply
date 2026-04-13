@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
+import { FullPageLoader } from '@/components/ui/spinner'
 import {
   Bell,
   Save,
@@ -113,12 +114,7 @@ export default function IntegrationPushPage() {
   }
 
   if (isLoading || !config) {
-    return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
-        <Loader2 className="w-5 h-5 animate-spin me-2" />
-        جارٍ التحميل...
-      </div>
-    )
+    return <FullPageLoader />
   }
 
   return (
@@ -384,7 +380,7 @@ export default function IntegrationPushPage() {
             [
               {
                 key: 'welcome',
-                icon: <UserPlus className="w-4 h-4 text-blue-500" />,
+                icon: <UserPlus className="w-4 h-4 text-violet-500" />,
                 title: 'ترحيبي',
                 description: 'تنبيه فور تسجيل العميل بطاقته',
               },

@@ -173,7 +173,7 @@ function LogResultIcon({ result }: { result: 'success' | 'skipped' | 'failed' })
 
 const STATUS_META = {
   queued: { label: 'في الانتظار', className: 'bg-muted text-muted-foreground border', Icon: Clock },
-  running: { label: 'قيد التنفيذ', className: 'bg-blue-500/15 text-blue-600 border-blue-500/30 border', Icon: Loader2 },
+  running: { label: 'قيد التنفيذ', className: 'bg-violet-500/15 text-violet-600 border-violet-500/30 border', Icon: Loader2 },
   waiting: { label: 'انتظار', className: 'bg-purple-500/15 text-purple-600 border-purple-500/30 border', Icon: Clock },
   completed: { label: 'اكتمل', className: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 border', Icon: CheckCircle2 },
   failed: { label: 'فشل', className: 'bg-destructive/15 text-destructive border-destructive/30 border', Icon: XCircle },

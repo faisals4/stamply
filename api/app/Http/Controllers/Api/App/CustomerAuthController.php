@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\App;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\CustomerProfile;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\SendResult;
 use App\Services\Auth\VerifyResult;
@@ -18,19 +18,19 @@ use Illuminate\Support\Facades\Log;
  * can ONLY hit `/api/app/*` routes; admin/op routes reject it with a
  * clean 403 via Sanctum's built-in `abilities:*` middleware.
  *
- * Two important properties of this flow:
+ * # Central CustomerProfile model
  *
- *   1. Phone enumeration is not possible. `request` always returns 200
- *      and a generic "sent" payload — even if no Customer row exists
- *      for that phone. We only reveal the `no_account` state AFTER a
- *      valid OTP is entered, because at that point the caller has
- *      proved they own the phone and is entitled to know.
+ * Since the profile refactor, the token is issued directly against
+ * a `CustomerProfile` (not a tenant-scoped Customer row). That means
+ * `$request->user()` inside `/api/app/*` returns the profile — a
+ * single row identified by phone. All downstream controllers
+ * (CustomerCardsController, CustomerProfileController) read personal
+ * fields straight off the profile.
  *
- *   2. The Customer token is tokenable_id = any ONE of the customer
- *      rows with that phone. The actual cross-tenant aggregation in
- *      CustomerCardsController always re-queries by phone with
- *      `withoutGlobalScopes()` — the token's pinned customer_id is
- *      just a Sanctum bookkeeping detail.
+ * Phone enumeration is still blocked: `request` always returns 200
+ * regardless of whether a profile exists. The `no_account` state is
+ * only revealed after a valid OTP — at that point the caller has
+ * proven phone ownership and is entitled to know.
  */
 class CustomerAuthController extends Controller
 {
@@ -122,47 +122,40 @@ class CustomerAuthController extends Controller
             };
         }
 
-        // The OTP passed. Now check whether a Customer row exists for
-        // this phone. If not, tell the user — they need to sign up
-        // with a merchant first. This is the only place we leak
-        // account-existence info, and by now the caller has proved
-        // phone ownership so enumeration isn't a concern.
-        $customers = Customer::withoutGlobalScopes()
-            ->where('phone', $result->phone)
-            ->orderBy('created_at')
-            ->get();
+        // OTP passed. Look up or create the profile for this phone.
+        // If the customer hasn't signed up at any merchant yet, we
+        // still create a profile so they can browse stores and sign
+        // up for loyalty cards from within the app.
+        $profile = CustomerProfile::firstOrCreate(
+            ['phone' => $result->phone],
+            ['phone_verified_at' => now()],
+        );
 
-        if ($customers->isEmpty()) {
-            return response()->json([
-                'error' => 'no_account',
-                'message' => 'لا يوجد حساب مرتبط بهذا الرقم. سجّل في إحدى البطاقات أولاً.',
-            ], 404);
-        }
+        // Stamp the profile as verified. Since the profile is the
+        // single source of truth, one UPDATE does it — no fan-out
+        // needed.
+        $profile->update(['phone_verified_at' => now()]);
 
-        // Mark every row as phone-verified (cross-tenant). Same pattern
-        // as the public OTP flow.
-        $now = now();
-        Customer::withoutGlobalScopes()
-            ->where('phone', $result->phone)
-            ->update(['phone_verified_at' => $now]);
+        $token = $profile->createToken('mobile', ['customer'])->plainTextToken;
 
-        // Pick the oldest Customer row as the canonical token owner.
-        // Any row with this phone would work — they're all "the same
-        // person" from the mobile app's point of view.
-        $canonical = $customers->first();
-
-        $token = $canonical->createToken('mobile', ['customer'])->plainTextToken;
+        // Count how many merchants this customer has an active
+        // relationship with — handy for the mobile Home screen.
+        // `withoutGlobalScopes(['tenant'])` because `customers` has
+        // the BelongsToTenant scope and we're authenticated as a
+        // CustomerProfile (no tenant_id) in this request.
+        $tenantsCount = $profile->customers()->withoutGlobalScopes(['tenant'])->count();
 
         Log::info('[app-auth] customer logged in', [
             'phone' => $this->otp->maskPhone($result->phone),
-            'rows_linked' => $customers->count(),
+            'profile_id' => $profile->id,
+            'tenants' => $tenantsCount,
             'dev_bypass' => $result->devBypass,
         ]);
 
         return response()->json([
             'data' => [
                 'token' => $token,
-                'customer' => $this->presentCustomer($canonical),
+                'customer' => $this->presentProfile($profile),
             ],
         ]);
     }
@@ -179,16 +172,21 @@ class CustomerAuthController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function presentCustomer(Customer $customer): array
+    private function presentProfile(CustomerProfile $profile): array
     {
         return [
-            'id' => $customer->id,
-            'phone' => $customer->phone,
-            'first_name' => $customer->first_name,
-            'last_name' => $customer->last_name,
-            'email' => $customer->email,
-            'locale' => $customer->locale,
-            'phone_verified_at' => $customer->phone_verified_at?->toIso8601String(),
+            'id' => $profile->id,
+            'phone' => $profile->phone,
+            'first_name' => $profile->first_name,
+            'last_name' => $profile->last_name,
+            'email' => $profile->email,
+            // Date-only string so the mobile form can show it
+            // directly in a `<input type="date">` field without an
+            // extra formatting step.
+            'birthdate' => $profile->birthdate?->toDateString(),
+            'gender' => $profile->gender,
+            'phone_verified_at' => $profile->phone_verified_at?->toIso8601String(),
+            'locked_fields' => $profile->locked_fields ?? [],
         ];
     }
 }

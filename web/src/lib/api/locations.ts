@@ -24,9 +24,15 @@ export interface LocationInput {
   is_active?: boolean
 }
 
-export async function listLocations(): Promise<Location[]> {
-  const { data } = await api.get<{ data: Location[] }>('/locations')
-  return data.data
+export async function listLocations(params?: {
+  page?: number
+  q?: string
+}): Promise<import('@/types/pagination').Paginated<Location>> {
+  const { data } = await api.get<import('@/types/pagination').Paginated<Location>>(
+    '/locations',
+    { params },
+  )
+  return data
 }
 
 export async function createLocation(input: LocationInput): Promise<Location> {

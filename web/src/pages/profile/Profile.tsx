@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
+import { FullPageLoader } from '@/components/ui/spinner'
 import {
   Loader2,
   Save,
@@ -25,7 +26,7 @@ import {
 } from '@/lib/api/profile'
 
 const ROLE_LABEL: Record<string, { label: string; icon: typeof ShieldCheck; color: string }> = {
-  admin: { label: 'مدير النظام', icon: ShieldCheck, color: 'text-blue-600' },
+  admin: { label: 'مدير النظام', icon: ShieldCheck, color: 'text-violet-600' },
   manager: { label: 'مدير فرع', icon: UserCog, color: 'text-purple-600' },
   cashier: { label: 'كاشير', icon: ScanLine, color: 'text-amber-600' },
 }
@@ -120,11 +121,7 @@ export default function ProfilePage() {
   }
 
   if (isLoading || !profile) {
-    return (
-      <div className="min-h-64 flex items-center justify-center text-muted-foreground text-sm">
-        جارٍ التحميل...
-      </div>
-    )
+    return <FullPageLoader />
   }
 
   const roleInfo = ROLE_LABEL[profile.role] ?? ROLE_LABEL.admin

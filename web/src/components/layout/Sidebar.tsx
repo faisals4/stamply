@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard,
   CreditCard,
+  Crown,
   Users,
   MessageSquare,
   Workflow,
@@ -23,11 +24,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Logo } from '@/components/brand/Logo'
 import { getTenant } from '@/lib/api/tenant'
 
-/**
- * Each nav entry declares the permission required to even SEE it. Items are
- * filtered by `useAuth().can(...)` so a cashier sees only Dashboard / Customers
- * / Scan, etc. Admins always pass.
- */
 const navItems = [
   { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard' as const, requires: 'dashboard.view' },
   { href: '/admin/cards', icon: CreditCard, labelKey: 'cards' as const, requires: 'cards.view' },
@@ -40,6 +36,7 @@ const navItems = [
   { href: '/admin/managers', icon: UserCog, labelKey: 'managers' as const, requires: 'staff.view' },
   { href: '/admin/reports', icon: BarChart3, labelKey: 'reports' as const, requires: 'reports.view' },
   { href: '/admin/settings', icon: Settings, labelKey: 'settings' as const, requires: 'settings.brand' },
+  { href: '/admin/subscription', icon: Crown, labelKey: 'subscription' as const, requires: null },
 ]
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
@@ -47,10 +44,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { t } = useI18n()
   const { user, logout, can } = useAuth()
 
-  const visibleItems = navItems.filter((item) => can(item.requires))
+  const visibleItems = navItems.filter((item) => item.requires === null || can(item.requires))
 
-  // Load the current tenant so the header can link to its public brand page
-  // (`/c/{subdomain}`). Cached for 5 minutes — subdomain rarely changes.
   const { data: tenant } = useQuery({
     queryKey: ['tenant', 'self'],
     queryFn: getTenant,
@@ -58,8 +53,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   })
 
   return (
-    <aside className="w-60 bg-sidebar border-e border-sidebar-border flex flex-col h-full">
-      <div className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border">
+    <aside className="w-52 bg-white flex flex-col h-full">
+      {/* Logo */}
+      <div className="h-16 flex items-center justify-between px-5 border-b border-gray-200/50">
         <Link href="/" aria-label={t('appName')} onClick={onNavigate}>
           <Logo height={28} />
         </Link>
@@ -71,7 +67,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="فتح صفحة التاجر العامة"
-                className="w-8 h-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-[#A4A1AA] hover:text-[#8B52F6] hover:bg-[#8B52F6]/10 transition"
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
@@ -81,10 +77,32 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
         )}
       </div>
 
-      <nav className="flex-1 py-3 px-2 space-y-0.5">
+      {/* Subscription badge */}
+      {(() => {
+        const sub = (user as Record<string, unknown>)?.subscription as {
+          plan: string; status: string; days_remaining: number; is_trial: boolean; plan_name_ar: string
+        } | null | undefined
+        if (!sub || sub.status === 'active') return null
+
+        const badgeConfig: Record<string, { bg: string; text: string; label: string }> = {
+          trial: { bg: 'bg-amber-500/15', text: 'text-amber-600', label: `تجريبي — باقي ${sub.days_remaining} يوم من 14` },
+          expiring_soon: { bg: 'bg-orange-500/15', text: 'text-orange-600', label: `ينتهي خلال ${sub.days_remaining} يوم` },
+          expired: { bg: 'bg-red-500/15', text: 'text-red-600', label: 'منتهي' },
+          disabled: { bg: 'bg-neutral-500/15', text: 'text-neutral-500', label: 'معطّل' },
+        }
+        const cfg = badgeConfig[sub.status] ?? badgeConfig.trial
+        return (
+          <Link href="/admin/subscription" onClick={onNavigate}>
+            <div className={cn('mx-3 mt-3 px-3 py-2 rounded-lg text-xs font-medium text-center cursor-pointer hover:opacity-80 transition', cfg.bg, cfg.text)}>
+              {cfg.label}
+            </div>
+          </Link>
+        )
+      })()}
+
+      {/* Navigation */}
+      <nav className="flex-1 py-3 px-3 space-y-1">
         {visibleItems.map((item) => {
-          // Longest-prefix match so nested routes (e.g. /admin/cards/new)
-          // still highlight their top-level nav entry.
           const isActive =
             item.href === '/admin'
               ? location === '/admin'
@@ -96,35 +114,45 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition',
+                'flex items-center gap-3 px-3 h-10 rounded-lg text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/50',
+                  ? 'bg-[#8B52F6] text-white'
+                  : 'text-[#635C70] hover:bg-[#8B52F6]/10 hover:text-[#8B52F6] group',
               )}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span>{t(item.labelKey)}</span>
+              <Icon className={cn('w-5 h-5 shrink-0', isActive ? 'text-white' : 'text-[#A4A1AA] group-hover:text-[#8B52F6]')} />
+              <span className="flex-1">{t(item.labelKey)}</span>
+              {isActive && (
+                <span className="w-2 h-2 rounded-full bg-violet-300 shrink-0" />
+              )}
             </Link>
           )
         })}
       </nav>
 
-      <div className="p-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 px-2 py-2">
+      {/* User section */}
+      <div className="px-3 py-3 border-t border-gray-200/50">
+        <div className="flex items-center gap-2">
           <Link
             href="/admin/profile"
-            className="flex items-center gap-3 flex-1 min-w-0 hover:bg-sidebar-accent/30 -mx-2 px-2 py-1 rounded transition"
+            onClick={onNavigate}
+            className="flex items-center gap-2.5 flex-1 min-w-0 hover:bg-[#8B52F6]/5 px-2 py-2 rounded-lg transition"
             title="الملف الشخصي"
           >
-            <Avatar name={user?.name} email={user?.email} size={32} />
+            <Avatar
+              name={user?.name}
+              email={user?.email}
+              size={34}
+              className="bg-violet-100 text-violet-600"
+            />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{user?.name}</div>
-              <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
+              <div className="text-[13px] font-medium text-gray-800 truncate">{user?.name}</div>
+              <div className="text-[11px] text-[#9E98A8] truncate">{user?.email}</div>
             </div>
           </Link>
           <button
             onClick={logout}
-            className="text-muted-foreground hover:text-foreground transition shrink-0"
+            className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-[#9E98A8] hover:text-red-500 hover:bg-red-50 transition shrink-0"
             title={t('logout')}
           >
             <LogOut className="w-4 h-4" />

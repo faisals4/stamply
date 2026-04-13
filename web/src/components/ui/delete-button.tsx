@@ -88,7 +88,7 @@ export function DeleteButton({
   // selector forces lucide's `currentColor` strokes to follow even
   // when React hasn't repainted the parent text-color class.
   const hoverDestructive =
-    'hover:bg-destructive hover:text-white hover:border-destructive [&:hover>svg]:text-white [&:hover_svg]:text-white'
+    'hover:bg-red-500 hover:text-white [&:hover>svg]:text-white [&:hover_svg]:text-white'
 
   const handleTriggerClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -106,10 +106,10 @@ export function DeleteButton({
         onClick={handleTriggerClick}
         aria-label={label}
         className={cn(
-          'inline-flex items-center h-9 rounded-md border px-3 bg-card text-sm text-muted-foreground shrink-0 transition-colors',
+          'inline-flex items-center h-12 rounded-xl px-3 bg-gray-100 text-sm text-[#635C70] shrink-0 transition-all duration-200',
           hoverDestructive,
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2',
-          'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:text-muted-foreground disabled:hover:border-border',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2',
+          'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-[#635C70]',
           className,
         )}
       >
@@ -127,10 +127,10 @@ export function DeleteButton({
             className={cn(
               // w-10 h-10 (40px) on mobile for touch, w-9 h-9 (36px) on sm+ for
               // compact desktop table rows.
-              'w-10 h-10 sm:w-9 sm:h-9 inline-flex items-center justify-center rounded-md border bg-card text-muted-foreground shrink-0 transition-colors',
+              'w-12 h-12 sm:w-10 sm:h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] shrink-0 transition-all duration-200',
               hoverDestructive,
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2',
-              'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:text-muted-foreground disabled:hover:border-border',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2',
+              'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-[#635C70]',
               className,
             )}
           >

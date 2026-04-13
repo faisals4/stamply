@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { useQuery } from '@tanstack/react-query'
 import {
   Users,
@@ -38,13 +39,13 @@ export default function ReportsPage() {
       />
 
       {isLoading || !data ? (
-        <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+        <FullPageLoader />
       ) : (
         <>
           {/* Top stat cards — each opens the relevant drill-down report */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatCard
-              icon={<Users className="w-5 h-5 text-blue-500" />}
+              icon={<Users className="w-5 h-5 text-violet-500" />}
               label="إجمالي العملاء"
               value={data.totals.customers}
               sublabel={`+${data.totals.customers_week} هذا الأسبوع`}

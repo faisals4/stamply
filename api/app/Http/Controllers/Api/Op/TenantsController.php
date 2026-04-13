@@ -8,6 +8,7 @@ use App\Models\CardTemplate;
 use App\Models\Customer;
 use App\Models\IssuedCard;
 use App\Models\Stamp;
+use App\Models\SubscriptionLog;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -69,27 +70,93 @@ class TenantsController extends Controller
     public function show(string $id): JsonResponse
     {
         $tenant = Tenant::findOrFail($id);
+        $tid = $tenant->id;
+
+        // Stats
+        $redemptions = \App\Models\Redemption::withoutGlobalScopes()->where('tenant_id', $tid);
+        $locations = \App\Models\Location::withoutGlobalScopes()->where('tenant_id', $tid);
+        $pushTokens = \App\Models\PushToken::withoutGlobalScopes()->where('tenant_id', $tid);
+        $messages = \App\Models\Message::withoutGlobalScopes()->where('tenant_id', $tid);
 
         $stats = [
-            'users' => User::where('tenant_id', $tenant->id)->count(),
-            'card_templates' => CardTemplate::withoutGlobalScopes()
-                ->where('tenant_id', $tenant->id)
-                ->count(),
-            'customers' => Customer::withoutGlobalScopes()
-                ->where('tenant_id', $tenant->id)
-                ->count(),
-            'issued_cards' => IssuedCard::withoutGlobalScopes()
-                ->where('tenant_id', $tenant->id)
-                ->count(),
-            'stamps_given' => Stamp::withoutGlobalScopes()
-                ->where('tenant_id', $tenant->id)
-                ->where('count', '>', 0)
-                ->sum('count'),
+            'users' => User::where('tenant_id', $tid)->count(),
+            'card_templates' => CardTemplate::withoutGlobalScopes()->where('tenant_id', $tid)->count(),
+            'customers' => Customer::withoutGlobalScopes()->where('tenant_id', $tid)->count(),
+            'issued_cards' => IssuedCard::withoutGlobalScopes()->where('tenant_id', $tid)->count(),
+            'stamps_given' => (int) Stamp::withoutGlobalScopes()->where('tenant_id', $tid)->where('count', '>', 0)->sum('count'),
+            'redemptions' => (clone $redemptions)->count(),
+            'locations' => (clone $locations)->count(),
+            'push_tokens' => (clone $pushTokens)->count(),
+            'messages_sent' => (clone $messages)->whereNotNull('sent_at')->count(),
+            'active_customers' => Customer::withoutGlobalScopes()->where('tenant_id', $tid)
+                ->where('last_activity_at', '>=', now()->subDays(30))->count(),
         ];
 
-        $users = User::where('tenant_id', $tenant->id)
+        // Users
+        $users = User::where('tenant_id', $tid)
             ->select('id', 'name', 'email', 'role', 'created_at')
+            ->orderByDesc('created_at')
             ->get();
+
+        // Card templates
+        $cardTemplates = CardTemplate::withoutGlobalScopes()
+            ->where('tenant_id', $tid)
+            ->withCount(['issuedCards' => fn ($q) => $q->withoutGlobalScopes()])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'type' => $c->type,
+                'status' => $c->status,
+                'stamps_count' => $c->design['stampsCount'] ?? null,
+                'issued_cards_count' => $c->issued_cards_count,
+                'public_slug' => $c->public_slug,
+                'created_at' => $c->created_at,
+            ]);
+
+        // Locations
+        $locationsList = \App\Models\Location::withoutGlobalScopes()
+            ->where('tenant_id', $tid)
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'name' => $l->name,
+                'address' => $l->address,
+                'lat' => $l->lat,
+                'lng' => $l->lng,
+                'geofence_radius_m' => $l->geofence_radius_m,
+                'is_active' => $l->is_active,
+            ]);
+
+        // Recent customers (top 10)
+        $recentCustomers = Customer::withoutGlobalScopes()
+            ->where('tenant_id', $tid)
+            ->with('profile:id,phone,first_name,last_name,email')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => trim(($c->profile?->first_name ?? '') . ' ' . ($c->profile?->last_name ?? '')),
+                'phone' => $c->profile?->phone,
+                'email' => $c->profile?->email,
+                'last_activity_at' => $c->last_activity_at,
+                'source_utm' => $c->source_utm,
+                'created_at' => $c->created_at,
+            ]);
+
+        // Subscription info
+        $subscription = [
+            'plan' => $tenant->plan,
+            'plan_price' => $tenant->plan_price,
+            'plan_interval' => $tenant->plan_interval,
+            'subscription_starts_at' => $tenant->subscription_starts_at,
+            'subscription_ends_at' => $tenant->subscription_ends_at,
+            'subscription_notes' => $tenant->subscription_notes,
+            'trial_ends_at' => $tenant->trial_ends_at,
+        ];
 
         return response()->json([
             'data' => [
@@ -102,8 +169,13 @@ class TenantsController extends Controller
                 'description' => data_get($tenant->settings, 'branding.description'),
                 'logo' => data_get($tenant->settings, 'branding.logo'),
                 'created_at' => $tenant->created_at,
+                'updated_at' => $tenant->updated_at,
                 'stats' => $stats,
+                'subscription' => $subscription,
                 'users' => $users,
+                'card_templates' => $cardTemplates,
+                'locations' => $locationsList,
+                'recent_customers' => $recentCustomers,
             ],
         ]);
     }
@@ -148,6 +220,20 @@ class TenantsController extends Controller
                 'email_verified_at' => now(),
             ]);
 
+            // Log the trial start
+            SubscriptionLog::create([
+                'tenant_id' => $tenant->id,
+                'action' => 'trial_started',
+                'plan_from' => null,
+                'plan_to' => $data['plan'] ?? 'trial',
+                'starts_at' => now(),
+                'ends_at' => $tenant->trial_ends_at,
+                'amount' => 0,
+                'payment_method' => 'cash',
+                'notes' => 'إنشاء تاجر من لوحة التحكم',
+                'performed_by' => $request->user()->id,
+            ]);
+
             return [$tenant];
         });
 
@@ -176,5 +262,38 @@ class TenantsController extends Controller
         $tenant->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * POST /op/tenants/{id}/impersonate
+     *
+     * Creates a short-lived Sanctum token for the tenant's admin user,
+     * allowing the platform operator to log in as the store manager.
+     * The token is scoped to the `tenant` ability (same as normal login).
+     */
+    public function impersonate(int $id): JsonResponse
+    {
+        $tenant = Tenant::findOrFail($id);
+
+        // Find the admin user for this tenant
+        $admin = User::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('role', 'admin')
+            ->firstOrFail();
+
+        // Create a token scoped to tenant (same as normal merchant login)
+        $token = $admin->createToken('op-impersonate', ['tenant'])->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => [
+                'id' => $admin->id,
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'role' => $admin->role,
+                'tenant_id' => $admin->tenant_id,
+                'tenant_name' => $tenant->name,
+            ],
+        ]);
     }
 }

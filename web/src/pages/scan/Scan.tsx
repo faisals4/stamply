@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/ui/page-header'
 import { cashierLookup, giveStamp, removeStamp, redeemReward } from '@/lib/api/misc'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import type { CashierCardView } from '@/types/customer'
 import { CardVisual } from '@/components/card/CardVisual'
 import type { CardTemplate, CardReward } from '@/types/card'
@@ -17,6 +18,7 @@ import type { CardTemplate, CardReward } from '@/types/card'
  */
 export default function ScanPage() {
   const qc = useQueryClient()
+  const guard = useSubscriptionGuard()
   const [serialInput, setSerialInput] = useState('')
   const [card, setCard] = useState<CashierCardView | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -104,6 +106,10 @@ export default function ScanPage() {
 
   const handleLookup = (e: FormEvent) => {
     e.preventDefault()
+    if (guard.blocked) {
+      alert(guard.message)
+      return
+    }
     const s = serialInput.trim().toUpperCase()
     if (!s) return
     lookupMutation.mutate(s)

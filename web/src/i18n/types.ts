@@ -26,6 +26,7 @@ export type Dict = {
   managers: string
   reports: string
   settings: string
+  subscription: string
 
   // Dashboard
   welcomeBack: string

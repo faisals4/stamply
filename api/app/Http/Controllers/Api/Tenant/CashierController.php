@@ -27,8 +27,14 @@ class CashierController extends Controller
      */
     public function lookup(string $serial): JsonResponse
     {
+        // Customer personal data lives on customer_profiles now —
+        // pull id/tenant_id/customer_profile_id from `customers`
+        // (needed for tenant scoping + the proxy accessor), then
+        // pull the actual name/phone columns through the `profile`
+        // relation with a narrow select.
         $issued = IssuedCard::with([
-            'customer:id,phone,first_name,last_name',
+            'customer:id,tenant_id,customer_profile_id',
+            'customer.profile:id,phone,first_name,last_name',
             'template.rewards',
         ])->where('serial_number', $serial)->firstOrFail();
 
@@ -90,7 +96,7 @@ class CashierController extends Controller
                 'pass_updated_at' => now()->timestamp,
             ]);
 
-            return $issued->fresh(['customer:id,phone,first_name,last_name', 'template.rewards']);
+            return $issued->fresh(['customer:id,tenant_id,customer_profile_id', 'customer.profile:id,phone,first_name,last_name', 'template.rewards']);
         });
 
         // Fire automation trigger AFTER the transaction commits.
@@ -155,7 +161,7 @@ class CashierController extends Controller
                 'pass_updated_at' => now()->timestamp,
             ]);
 
-            return $issued->fresh(['customer:id,phone,first_name,last_name', 'template.rewards']);
+            return $issued->fresh(['customer:id,tenant_id,customer_profile_id', 'customer.profile:id,phone,first_name,last_name', 'template.rewards']);
         });
 
         SendApplePassUpdate::dispatch($issued->id)->afterCommit();
@@ -204,7 +210,7 @@ class CashierController extends Controller
                 'pass_updated_at' => now()->timestamp,
             ]);
 
-            return $issued->fresh(['customer:id,phone,first_name,last_name', 'template.rewards']);
+            return $issued->fresh(['customer:id,tenant_id,customer_profile_id', 'customer.profile:id,phone,first_name,last_name', 'template.rewards']);
         });
 
         // Lifecycle: fire the "redeemed" trigger so the customer's

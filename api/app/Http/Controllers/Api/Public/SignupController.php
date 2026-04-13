@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\SubscriptionLog;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +34,7 @@ class SignupController extends Controller
             'subdomain' => [
                 'required',
                 'string',
-                'max:40',
+                'max:20',
                 'regex:/^[a-z0-9-]+$/',
                 'unique:tenants,subdomain',
             ],
@@ -59,6 +60,19 @@ class SignupController extends Controller
                 'password' => Hash::make($data['password']),
                 'role' => 'admin',
                 'email_verified_at' => now(),
+            ]);
+
+            // Log the trial start
+            SubscriptionLog::create([
+                'tenant_id' => $tenant->id,
+                'action' => 'trial_started',
+                'plan_from' => null,
+                'plan_to' => 'trial',
+                'starts_at' => now(),
+                'ends_at' => $tenant->trial_ends_at,
+                'amount' => 0,
+                'payment_method' => 'cash',
+                'notes' => 'تسجيل جديد — تجربة مجانية 14 يوم',
             ]);
 
             return [$tenant, $user];

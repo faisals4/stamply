@@ -128,18 +128,20 @@ class ReportsController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['ID', 'الاسم', 'الجوال', 'البريد', 'تاريخ الميلاد', 'تاريخ التسجيل']);
 
-            Customer::orderBy('id')->chunk(500, function ($rows) use ($out) {
-                foreach ($rows as $c) {
-                    fputcsv($out, [
-                        $c->id,
-                        $c->full_name,
-                        $c->phone,
-                        $c->email,
-                        $c->birthdate,
-                        $c->created_at?->toDateTimeString(),
-                    ]);
-                }
-            });
+            Customer::with('profile')
+                ->orderBy('id')
+                ->chunk(500, function ($rows) use ($out) {
+                    foreach ($rows as $c) {
+                        fputcsv($out, [
+                            $c->id,
+                            $c->full_name,
+                            $c->phone,
+                            $c->email,
+                            $c->birthdate,
+                            $c->created_at?->toDateTimeString(),
+                        ]);
+                    }
+                });
 
             fclose($out);
         });
@@ -152,7 +154,7 @@ class ReportsController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['ID', 'البطاقة المصدّرة', 'العميل', 'العدد', 'السبب', 'بواسطة', 'التاريخ']);
 
-            Stamp::with(['issuedCard.customer', 'givenBy'])
+            Stamp::with(['issuedCard.customer.profile', 'givenBy'])
                 ->orderBy('id')
                 ->chunk(500, function ($rows) use ($out) {
                     foreach ($rows as $s) {
@@ -179,7 +181,7 @@ class ReportsController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['ID', 'البطاقة', 'العميل', 'المكافأة', 'الكود', 'الحالة', 'التاريخ']);
 
-            Redemption::with(['issuedCard.customer', 'reward'])
+            Redemption::with(['issuedCard.customer.profile', 'reward'])
                 ->orderBy('id')
                 ->chunk(500, function ($rows) use ($out) {
                     foreach ($rows as $r) {
@@ -216,7 +218,12 @@ class ReportsController extends Controller
     public function stamps(Request $request): JsonResponse
     {
         $query = Stamp::with([
-            'issuedCard.customer:id,first_name,last_name,phone',
+            // Customer row is just the tenant↔profile link; the
+            // personal fields (first_name, last_name, phone) live
+            // on the related profile and are proxied back via the
+            // Customer model's accessors.
+            'issuedCard.customer:id,tenant_id,customer_profile_id',
+            'issuedCard.customer.profile:id,phone,first_name,last_name',
             'issuedCard.template:id,name',
             'givenBy:id,name',
         ])->orderByDesc('created_at');
@@ -237,7 +244,8 @@ class ReportsController extends Controller
             $query->whereDate('created_at', '<=', $to);
         }
         if ($q = trim((string) $request->query('q', ''))) {
-            $query->whereHas('issuedCard.customer', function ($c) use ($q) {
+            // Search fields live on customer_profiles now.
+            $query->whereHas('issuedCard.customer.profile', function ($c) use ($q) {
                 $c->where('phone', 'like', "%{$q}%")
                     ->orWhere('first_name', 'like', "%{$q}%")
                     ->orWhere('last_name', 'like', "%{$q}%");
@@ -280,7 +288,10 @@ class ReportsController extends Controller
     public function redemptions(Request $request): JsonResponse
     {
         $query = Redemption::with([
-            'issuedCard.customer:id,first_name,last_name,phone',
+            // See stamps() for the rationale — personal fields are
+            // on the profile relation, proxied back through Customer.
+            'issuedCard.customer:id,tenant_id,customer_profile_id',
+            'issuedCard.customer.profile:id,phone,first_name,last_name',
             'issuedCard.template:id,name',
             'reward:id,name,stamps_required',
             'usedBy:id,name',
@@ -299,7 +310,7 @@ class ReportsController extends Controller
             $query->whereDate('created_at', '<=', $to);
         }
         if ($q = trim((string) $request->query('q', ''))) {
-            $query->whereHas('issuedCard.customer', function ($c) use ($q) {
+            $query->whereHas('issuedCard.customer.profile', function ($c) use ($q) {
                 $c->where('phone', 'like', "%{$q}%")
                     ->orWhere('first_name', 'like', "%{$q}%")
                     ->orWhere('last_name', 'like', "%{$q}%");
@@ -350,7 +361,8 @@ class ReportsController extends Controller
         // Use an alias for the stamps count so it doesn't clobber the
         // issued_cards.stamps_count column on the model.
         $query = IssuedCard::with([
-            'customer:id,first_name,last_name,phone',
+            'customer:id,tenant_id,customer_profile_id',
+            'customer.profile:id,phone,first_name,last_name',
             'template:id,name,type',
         ])
             ->withCount(['stamps as stamp_events_count', 'redemptions'])
@@ -371,7 +383,7 @@ class ReportsController extends Controller
         if ($q = trim((string) $request->query('q', ''))) {
             $query->where(function ($w) use ($q) {
                 $w->where('serial_number', 'like', "%{$q}%")
-                    ->orWhereHas('customer', function ($c) use ($q) {
+                    ->orWhereHas('customer.profile', function ($c) use ($q) {
                         $c->where('phone', 'like', "%{$q}%")
                             ->orWhere('first_name', 'like', "%{$q}%")
                             ->orWhere('last_name', 'like', "%{$q}%");

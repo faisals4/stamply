@@ -17,10 +17,12 @@ export function usePaginatedQuery<T>(
   key: unknown[],
   fetcher: (page: number) => Promise<Paginated<T>>,
   page: number,
+  options?: { enabled?: boolean },
 ) {
   return useQuery({
     queryKey: [...key, page],
     queryFn: () => fetcher(page),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled,
   })
 }

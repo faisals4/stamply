@@ -29,11 +29,12 @@ import {
   type AutomationStatus,
 } from '@/lib/api/automations'
 import { cn } from '@/lib/utils'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
 import { formatDate } from '@/lib/utils/date'
 
 const TRIGGER_LABELS: Record<AutomationTrigger, { label: string; icon: typeof UserPlus; color: string }> = {
-  card_issued: { label: 'عميل جديد', icon: UserPlus, color: 'text-blue-500' },
+  card_issued: { label: 'عميل جديد', icon: UserPlus, color: 'text-violet-500' },
   birthday: { label: 'عيد ميلاد', icon: Cake, color: 'text-pink-500' },
   inactive: { label: 'غير نشط', icon: Clock, color: 'text-amber-500' },
   stamp_given: { label: 'عند الختم', icon: Send, color: 'text-emerald-500' },
@@ -48,6 +49,7 @@ const STATUS_LABELS: Record<AutomationStatus, { label: string; className: string
 export default function AutomationsPage() {
   const [, setLocation] = useLocation()
   const qc = useQueryClient()
+  const guard = useSubscriptionGuard()
   const [triggerFilter, setTriggerFilter] = useState<'' | AutomationTrigger>('')
   const [showPresets, setShowPresets] = useState(false)
   const [page, setPage] = useState(1)
@@ -90,11 +92,18 @@ export default function AutomationsPage() {
         subtitle="أنشئ سيناريوهات تلقائية لإرسال رسائل ومنح أختام لعملائك بدون تدخل يدوي"
         action={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setShowPresets((v) => !v)}>
+            <Button
+              variant="outline"
+              onClick={() => guard.blocked ? alert(guard.message) : setShowPresets((v) => !v)}
+              className={guard.blocked ? 'opacity-60' : ''}
+            >
               <Sparkles className="w-4 h-4 me-1.5" />
               ابدأ من قالب
             </Button>
-            <Button onClick={() => setLocation('/admin/automations/new')}>
+            <Button
+              onClick={() => guard.blocked ? alert(guard.message) : setLocation('/admin/automations/new')}
+              className={guard.blocked ? 'opacity-60' : ''}
+            >
               <Plus className="w-4 h-4 me-1.5" />
               أتمتة جديدة
             </Button>
@@ -126,8 +135,8 @@ export default function AutomationsPage() {
                 <button
                   key={p.key}
                   type="button"
-                  onClick={() => fromPresetMutation.mutate(p.key)}
-                  disabled={fromPresetMutation.isPending}
+                  onClick={() => guard.blocked ? alert(guard.message) : fromPresetMutation.mutate(p.key)}
+                  disabled={fromPresetMutation.isPending || guard.blocked}
                   className="text-start p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition disabled:opacity-50"
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -195,11 +204,11 @@ export default function AutomationsPage() {
             <Workflow className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground mb-4">لا توجد أتمتات بعد</p>
             <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" onClick={() => setShowPresets(true)}>
+              <Button variant="outline" onClick={() => guard.blocked ? alert(guard.message) : setShowPresets(true)} className={guard.blocked ? 'opacity-60' : ''}>
                 <Sparkles className="w-4 h-4 me-1.5" />
                 ابدأ من قالب
               </Button>
-              <Button onClick={() => setLocation('/admin/automations/new')}>
+              <Button onClick={() => guard.blocked ? alert(guard.message) : setLocation('/admin/automations/new')} className={guard.blocked ? 'opacity-60' : ''}>
                 <Plus className="w-4 h-4 me-1.5" />
                 أنشئ من الصفر
               </Button>
@@ -227,7 +236,7 @@ export default function AutomationsPage() {
                 return (
                   <tr
                     key={a.id}
-                    onClick={() => setLocation(`/admin/automations/${a.id}`)}
+                    onClick={() => guard.blocked ? alert(guard.message) : setLocation(`/admin/automations/${a.id}`)}
                     className="border-t border-border hover:bg-muted/30 transition cursor-pointer"
                   >
                     <td className="px-4 py-3">
@@ -270,7 +279,11 @@ export default function AutomationsPage() {
                           deleteMutation.isPending &&
                           deleteMutation.variables === a.id
                         }
-                        onConfirm={() => deleteMutation.mutateAsync(a.id)}
+                        disabled={guard.blocked}
+                        onConfirm={() => {
+                          if (guard.blocked) { alert(guard.message); return Promise.resolve() }
+                          return deleteMutation.mutateAsync(a.id)
+                        }}
                       />
                     </td>
                   </tr>

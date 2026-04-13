@@ -16,14 +16,16 @@ import { cn } from '@/lib/utils'
  */
 export function PasswordInput({
   className,
+  dir,
   ...props
 }: Omit<ComponentProps<'input'>, 'type'>) {
   const [show, setShow] = useState(false)
   return (
-    <div className="relative">
+    <div className="relative" dir={dir}>
       <Input
         type={show ? 'text' : 'password'}
         className={cn('pe-10', className)}
+        dir={dir}
         {...props}
       />
       <button
@@ -31,7 +33,7 @@ export function PasswordInput({
         onClick={() => setShow((v) => !v)}
         tabIndex={-1}
         aria-label={show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-        className="absolute end-1 top-1/2 -translate-y-1/2 w-8 h-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition"
+        className="absolute end-1 top-1/2 -translate-y-1/2 w-10 h-10 inline-flex items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition"
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>

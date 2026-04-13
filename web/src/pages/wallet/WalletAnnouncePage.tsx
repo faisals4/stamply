@@ -24,6 +24,7 @@ import {
   type AnnounceAllResult,
 } from '@/lib/api/misc'
 import { listCardsApi } from '@/lib/api/cards'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import { AnnouncementPreview } from './AnnouncementPreview'
 
 const MAX_CHARS = 500
@@ -99,8 +100,14 @@ export default function WalletAnnouncePage() {
 
   const targetAll = selectedTemplateIds.length === 0
 
+  const guard = useSubscriptionGuard()
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
+    if (guard.blocked) {
+      alert(guard.message)
+      return
+    }
     if (!message.trim()) {
       setError('الرسالة فارغة')
       return

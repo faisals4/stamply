@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
+import { FullPageLoader } from '@/components/ui/spinner'
 import {
   Loader2,
   Save,
@@ -111,11 +112,7 @@ export default function OpProfilePage() {
   }
 
   if (isLoading || !profile) {
-    return (
-      <div className="min-h-64 flex items-center justify-center text-muted-foreground text-sm">
-        جارٍ التحميل...
-      </div>
-    )
+    return <FullPageLoader />
   }
 
   return (
@@ -128,7 +125,7 @@ export default function OpProfilePage() {
         subtitle={
           <span className="flex items-center gap-3">
             <span dir="ltr">{profile.email}</span>
-            <span className="inline-flex items-center gap-1 text-blue-400">
+            <span className="inline-flex items-center gap-1 text-violet-400">
               <ShieldCheck className="w-3.5 h-3.5" />
               {profile.role === 'super_admin' ? 'مدير النظام الأعلى' : profile.role}
             </span>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Public;
 use App\Http\Controllers\Controller;
 use App\Models\CardTemplate;
 use App\Models\Customer;
+use App\Models\CustomerProfile;
 use App\Models\IssuedCard;
 use App\Models\Stamp;
 use App\Models\Tenant;
@@ -184,19 +185,64 @@ class PublicCardController extends Controller
         $tenantId = $card->tenant_id;
 
         $result = DB::transaction(function () use ($data, $card, $tenantId) {
-            $customer = Customer::withoutGlobalScopes()
-                ->where('tenant_id', $tenantId)
-                ->where('phone', $data['phone'])
-                ->first();
+            // 1. Ensure a CustomerProfile exists for this phone. A
+            //    profile is cross-tenant — one row per real person,
+            //    identified by phone. If the person already signed
+            //    up at another merchant, we reuse their existing
+            //    profile here.
+            $profile = CustomerProfile::where('phone', $data['phone'])->first();
 
-            if (! $customer) {
-                $customer = Customer::withoutGlobalScopes()->create([
-                    'tenant_id' => $tenantId,
+            if (! $profile) {
+                // First time we see this phone — create a fresh
+                // profile with whatever fields the customer
+                // supplied on the signup form.
+                $profile = CustomerProfile::create([
                     'phone' => $data['phone'],
                     'first_name' => $data['first_name'] ?? null,
                     'last_name' => $data['last_name'] ?? null,
                     'email' => $data['email'] ?? null,
                     'birthdate' => $data['birthdate'] ?? null,
+                ]);
+            } else {
+                // Existing profile. Only update fields the customer
+                // hasn't locked via the mobile app — locked fields
+                // represent "I own this value, don't let any
+                // merchant overwrite it". Unlocked fields can be
+                // filled in (but not overwritten if already set —
+                // we don't want a new merchant signup to blank out
+                // an existing customer's name).
+                $locked = $profile->locked_fields ?? [];
+                $profileUpdates = [];
+                foreach (['first_name', 'last_name', 'email', 'birthdate'] as $field) {
+                    $incoming = $data[$field] ?? null;
+                    if ($incoming === null || $incoming === '') {
+                        continue;
+                    }
+                    if (in_array($field, $locked, true)) {
+                        continue; // locked by customer, silently skip
+                    }
+                    if (! empty($profile->{$field})) {
+                        continue; // already set, don't overwrite
+                    }
+                    $profileUpdates[$field] = $incoming;
+                }
+                if (! empty($profileUpdates)) {
+                    $profile->update($profileUpdates);
+                }
+            }
+
+            // 2. Ensure a Customer row exists for (tenant, profile).
+            //    This is the per-merchant relationship — stamps,
+            //    locale, source UTM all live on the customers row.
+            $customer = Customer::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('customer_profile_id', $profile->id)
+                ->first();
+
+            if (! $customer) {
+                $customer = Customer::withoutGlobalScopes()->create([
+                    'tenant_id' => $tenantId,
+                    'customer_profile_id' => $profile->id,
                     'source_utm' => $data['source_utm'] ?? null,
                     'last_activity_at' => now(),
                 ]);
@@ -219,6 +265,7 @@ class PublicCardController extends Controller
                     'customer_id' => $customer->id,
                     'card_template_id' => $card->id,
                     'stamps_count' => $welcome,
+                    'source_utm' => $data['source_utm'] ?? null,
                 ]);
 
                 if ($welcome > 0) {
@@ -279,7 +326,14 @@ class PublicCardController extends Controller
             ->with([
                 'template.rewards',
                 'template.tenant:id,name,subdomain,settings',
-                'customer:id,phone,phone_verified_at,first_name,last_name',
+                // `customer` is just the tenant ↔ profile link; the
+                // personal fields (phone, first_name, last_name,
+                // phone_verified_at) live on the profile relation
+                // and are proxied back onto the customer model via
+                // accessors. We eager-load both so the serialization
+                // below doesn't fire a lazy query per field.
+                'customer:id,tenant_id,customer_profile_id',
+                'customer.profile:id,phone,phone_verified_at,first_name,last_name',
             ])
             ->where('serial_number', $serial)
             ->firstOrFail();

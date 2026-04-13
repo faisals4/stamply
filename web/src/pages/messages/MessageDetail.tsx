@@ -28,6 +28,7 @@ import {
   type MessageAudience,
   type MessageChannel,
 } from '@/lib/api/messages'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { formatDateTime as formatDate } from '@/lib/utils/date'
@@ -52,6 +53,7 @@ export default function MessageDetailPage() {
   const [, params] = useRoute('/admin/messages/:id')
   const id = params?.id
   const qc = useQueryClient()
+  const guard = useSubscriptionGuard()
 
   const { data: message, isLoading } = useQuery({
     queryKey: ['messages', 'detail', id],
@@ -145,7 +147,7 @@ export default function MessageDetailPage() {
       {/* Stats — same in both modes */}
       <section className="grid grid-cols-3 gap-3 mb-6">
         <StatBlock
-          icon={<Users className="w-4 h-4 text-blue-500" />}
+          icon={<Users className="w-4 h-4 text-violet-500" />}
           label="المستلمون"
           value={message.recipients_count}
         />
@@ -265,9 +267,11 @@ export default function MessageDetailPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                type="submit"
+                type={guard.blocked ? 'button' : 'submit'}
                 variant="outline"
                 disabled={saveMutation.isPending}
+                onClick={guard.blocked ? () => alert(guard.message) : undefined}
+                className={guard.blocked ? 'opacity-60' : ''}
               >
                 {saveMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin me-1.5" />
@@ -278,8 +282,9 @@ export default function MessageDetailPage() {
               </Button>
               <Button
                 type="button"
-                onClick={() => sendMutation.mutate()}
+                onClick={() => guard.blocked ? alert(guard.message) : sendMutation.mutate()}
                 disabled={sendMutation.isPending || message.recipients_count === 0}
+                className={guard.blocked ? 'opacity-60' : ''}
               >
                 {sendMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin me-1.5" />
@@ -397,7 +402,7 @@ function ChannelOption({
 function ChannelBadge({ channel }: { channel: BroadcastMessage['channel'] }) {
   if (channel === 'email') {
     return (
-      <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 border">
+      <Badge className="bg-violet-500/15 text-violet-600 border-violet-500/30 border">
         <Mail className="w-3 h-3 me-1" />
         إيميل
       </Badge>

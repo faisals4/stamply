@@ -41,8 +41,8 @@
 :root {
   --radius: 0.625rem;
 
-  /* Stamply brand primary — #003bc0 */
-  --brand: #003bc0;
+  /* Stamply brand primary — #8B52F6 */
+  --brand: #8B52F6;
 
   /* Light mode */
   --background: oklch(1 0 0);
@@ -51,7 +51,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #003bc0;
+  --primary: #8B52F6;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);

@@ -25,12 +25,18 @@ class BirthdayRewardCommand extends Command
         $dry = (bool) $this->option('dry-run');
         $today = now();
 
-        // SQLite & PG both support strftime/extract, use date-based comparison
+        // birthdate moved to customer_profiles; pivot the filter
+        // through the profile relation. Eager-load the profile too
+        // so `$customer->full_name` below works via the proxy
+        // accessor without a lazy query per customer.
         $customers = Customer::withoutGlobalScopes()
-            ->whereNotNull('birthdate')
-            ->whereMonth('birthdate', $today->month)
-            ->whereDay('birthdate', $today->day)
+            ->whereHas('profile', fn ($q) => $q
+                ->whereNotNull('birthdate')
+                ->whereMonth('birthdate', $today->month)
+                ->whereDay('birthdate', $today->day)
+            )
             ->with([
+                'profile',
                 'issuedCards.template:id,settings',
             ])
             ->get();

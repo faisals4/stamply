@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\CustomerProfile;
 use App\Models\IssuedCard;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\SendResult;
@@ -63,18 +63,18 @@ class PublicOtpController extends Controller
         ]);
 
         $card = IssuedCard::withoutGlobalScopes()
-            ->with(['customer', 'template.tenant'])
+            ->with(['customer.profile', 'template.tenant'])
             ->where('serial_number', $data['serial'])
             ->first();
 
-        if (! $card || ! $card->customer) {
+        if (! $card || ! $card->customer || ! $card->customer->profile) {
             return response()->json([
                 'error' => 'card_not_found',
                 'message' => 'البطاقة غير موجودة',
             ], 404);
         }
 
-        if ($card->customer->isPhoneVerified()) {
+        if ($card->customer->profile->isPhoneVerified()) {
             return response()->json([
                 'error' => 'already_verified',
                 'message' => 'الرقم موثّق بالفعل',
@@ -82,7 +82,7 @@ class PublicOtpController extends Controller
         }
 
         $result = $this->otp->sendCode(
-            phone: (string) $card->customer->phone,
+            phone: (string) $card->customer->profile->phone,
             context: self::CONTEXT,
             brandTenant: $card->template?->tenant,
         );
@@ -128,11 +128,11 @@ class PublicOtpController extends Controller
         ]);
 
         $card = IssuedCard::withoutGlobalScopes()
-            ->with('customer')
+            ->with('customer.profile')
             ->where('serial_number', $data['serial'])
             ->first();
 
-        if (! $card || ! $card->customer) {
+        if (! $card || ! $card->customer || ! $card->customer->profile) {
             return response()->json([
                 'error' => 'card_not_found',
                 'message' => 'البطاقة غير موجودة',
@@ -140,7 +140,7 @@ class PublicOtpController extends Controller
         }
 
         $result = $this->otp->verifyCode(
-            phone: (string) $card->customer->phone,
+            phone: (string) $card->customer->profile->phone,
             code: $data['code'],
             context: self::CONTEXT,
         );
@@ -168,19 +168,16 @@ class PublicOtpController extends Controller
             };
         }
 
-        // Success. Mark EVERY customer row with this phone as
-        // verified — crosses tenants so the customer doesn't repeat
-        // the dance at every merchant they ever signed up with.
-        // `withoutGlobalScopes` bypasses `BelongsToTenant` because
-        // there's no authenticated user on a public endpoint.
+        // Success. Mark the profile as verified. Since the profile
+        // is a single row shared across every merchant, one UPDATE
+        // is enough — no cross-tenant fan-out.
         $now = now();
-        $affected = Customer::withoutGlobalScopes()
-            ->where('phone', $result->phone)
+        $affected = CustomerProfile::where('phone', $result->phone)
             ->update(['phone_verified_at' => $now]);
 
         Log::info('[public-otp] phone verified', [
             'phone' => $this->otp->maskPhone($result->phone),
-            'rows_marked' => $affected,
+            'profiles_marked' => $affected,
             'dev_bypass' => $result->devBypass,
         ]);
 
@@ -188,7 +185,6 @@ class PublicOtpController extends Controller
             'data' => array_filter([
                 'verified' => true,
                 'verified_at' => $now->toIso8601String(),
-                'rows_marked' => $affected,
                 'dev_bypass' => $result->devBypass ?: null,
             ], fn ($v) => $v !== null),
         ]);

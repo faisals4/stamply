@@ -35,6 +35,12 @@ class CardNotificationDispatcher
 {
     public function fire(IssuedCard $card, string $triggerKey): void
     {
+        // Eager-load the customer + profile so `renderVariables`
+        // below reads first_name / full_name through the proxy
+        // accessors without lazy queries. Locale still lives on the
+        // customer row (per-merchant setting) so we load that too.
+        $card->loadMissing(['customer.profile']);
+
         $template = $card->template;
         if (! $template instanceof CardTemplate) {
             return;
@@ -48,7 +54,10 @@ class CardNotificationDispatcher
 
         // Locale selection — defaults to Arabic if the customer
         // didn't set one. The `customer.locale` column already
-        // stores 'ar' / 'en' from the signup form.
+        // stores 'ar' / 'en' from the signup form. It's a per-tenant
+        // preference (some merchants always message in English,
+        // others in Arabic) so it stays on `customers`, not on
+        // the shared profile.
         $locale = $card->customer?->locale ?? 'ar';
         $messageKey = $locale === 'en' ? 'message_en' : 'message_ar';
         $rawMessage = trim((string) ($trigger[$messageKey] ?? ''));

@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { FullPageLoader } from '@/components/ui/spinner'
+import { Pagination } from '@/components/ui/pagination'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
 import { AxiosError } from 'axios'
 import { MapPin, Plus, X, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +21,7 @@ import {
   type Location,
   type LocationInput,
 } from '@/lib/api/locations'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 
 /**
  * /locations — manage branches. Each location has a geofence radius that
@@ -25,10 +29,19 @@ import {
  */
 export default function LocationsPage() {
   const qc = useQueryClient()
-  const { data: locations = [], isLoading } = useQuery({
-    queryKey: ['locations'],
-    queryFn: listLocations,
-  })
+  const guard = useSubscriptionGuard()
+  const createBlocked = guard.blocked || !guard.canCreate('locations')
+  const createBlockedMessage = guard.blocked ? guard.message : guard.quotaMessage('locations')
+
+  const [page, setPage] = useState(1)
+
+  const { data, isLoading } = usePaginatedQuery<Location>(
+    ['locations'],
+    (p) => listLocations({ page: p }),
+    page,
+  )
+  const locations = data?.data ?? []
+  const meta = data?.meta
 
   const [editing, setEditing] = useState<Location | null>(null)
   const [adding, setAdding] = useState(false)
@@ -45,7 +58,10 @@ export default function LocationsPage() {
         title="المواقع"
         subtitle="أضف فروع نشاطك التجاري لتفعيل إشعارات شاشة القفل عند اقتراب العملاء"
         action={
-          <Button onClick={() => setAdding(true)}>
+          <Button
+            onClick={() => createBlocked ? alert(createBlockedMessage) : setAdding(true)}
+            className={createBlocked ? 'opacity-60' : ''}
+          >
             <Plus className="w-4 h-4 me-1.5" />
             إضافة موقع
           </Button>
@@ -53,7 +69,7 @@ export default function LocationsPage() {
       />
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+        <FullPageLoader />
       ) : locations.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed p-12 text-center">
           <div className="w-14 h-14 rounded-2xl bg-muted mx-auto flex items-center justify-center mb-3">
@@ -63,7 +79,10 @@ export default function LocationsPage() {
           <p className="text-sm text-muted-foreground mb-5">
             أضف أول فرع لتبدأ في الوصول لعملائك جغرافياً
           </p>
-          <Button onClick={() => setAdding(true)}>
+          <Button
+            onClick={() => createBlocked ? alert(createBlockedMessage) : setAdding(true)}
+            className={createBlocked ? 'opacity-60' : ''}
+          >
             <Plus className="w-4 h-4 me-1.5" />
             إضافة موقع
           </Button>
@@ -74,13 +93,23 @@ export default function LocationsPage() {
             <LocationCard
               key={loc.id}
               location={loc}
-              onEdit={() => setEditing(loc)}
-              onDelete={() => deleteMutation.mutateAsync(loc.id)}
+              onEdit={() => guard.blocked ? alert(guard.message) : setEditing(loc)}
+              onDelete={() => {
+                if (guard.blocked) { alert(guard.message); return Promise.resolve() }
+                return deleteMutation.mutateAsync(loc.id)
+              }}
               isDeleting={
                 deleteMutation.isPending && deleteMutation.variables === loc.id
               }
+              writeBlocked={guard.blocked}
             />
           ))}
+        </div>
+      )}
+
+      {meta && meta.last_page > 1 && (
+        <div className="mt-4">
+          <Pagination meta={meta} onPageChange={setPage} />
         </div>
       )}
 
@@ -104,11 +133,13 @@ function LocationCard({
   onEdit,
   onDelete,
   isDeleting,
+  writeBlocked = false,
 }: {
   location: Location
   onEdit: () => void
   onDelete: () => Promise<unknown>
   isDeleting: boolean
+  writeBlocked?: boolean
 }) {
   return (
     <div className="rounded-xl border bg-card p-5">
@@ -125,7 +156,7 @@ function LocationCard({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <EditButton onClick={onEdit} label="تعديل الموقع" />
+          <EditButton onClick={onEdit} label="تعديل الموقع" disabled={writeBlocked} />
           <DeleteButton
             label="حذف الموقع"
             title="حذف الموقع"
@@ -136,6 +167,7 @@ function LocationCard({
             }
             confirmLabel="حذف الموقع"
             loading={isDeleting}
+            disabled={writeBlocked}
             onConfirm={onDelete}
           />
         </div>
@@ -224,11 +256,11 @@ function LocationFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4 py-8"
       onClick={onClose}
     >
       <div
-        className="bg-card rounded-2xl border shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+        className="bg-card rounded-2xl border shadow-xl w-full max-w-md max-h-[calc(100vh-4rem)] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-5 border-b">

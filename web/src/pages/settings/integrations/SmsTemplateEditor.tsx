@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRoute } from 'wouter'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { BackButton } from '@/components/ui/back-button'
 import {
   Smartphone,
@@ -97,7 +98,7 @@ export default function SmsTemplateEditorPage() {
   })
 
   if (isLoading || !template) {
-    return <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+    return <FullPageLoader />
   }
 
   // SMS segmentation calc — 160 ASCII / 70 Unicode per segment.

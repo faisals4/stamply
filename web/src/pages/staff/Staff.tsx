@@ -31,6 +31,7 @@ import {
   type StaffMember,
   type StaffRole,
 } from '@/lib/api/staff'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import { StaffFormModal } from './StaffFormModal'
 import { TempPasswordDialog } from './TempPasswordDialog'
 
@@ -44,6 +45,9 @@ export default function StaffPage() {
   const { user, can } = useAuth()
   const [, setLocation] = useLocation()
   const qc = useQueryClient()
+  const guard = useSubscriptionGuard()
+  const addBlocked = guard.blocked || !guard.canCreate('users')
+  const addBlockedMessage = guard.blocked ? guard.message : guard.quotaMessage('users')
 
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'' | StaffRole>('')
@@ -99,7 +103,10 @@ export default function StaffPage() {
               </Button>
             )}
             {can('staff.manage') && (
-              <Button onClick={openAdd}>
+              <Button
+                onClick={() => addBlocked ? alert(addBlockedMessage) : openAdd()}
+                className={addBlocked ? 'opacity-60' : ''}
+              >
                 <Plus className="w-4 h-4 me-1.5" />
                 {t('addStaff')}
               </Button>
@@ -198,8 +205,9 @@ export default function StaffPage() {
                       {can('staff.manage') && (
                         <>
                           <EditButton
-                            onClick={() => openEdit(s)}
+                            onClick={() => guard.blocked ? alert(guard.message) : openEdit(s)}
                             label={t('edit')}
+                            disabled={guard.blocked}
                           />
 
                           <DeleteButton
@@ -212,12 +220,15 @@ export default function StaffPage() {
                               </>
                             }
                             confirmLabel={t('delete')}
-                            disabled={s.is_self || s.id === user?.id}
+                            disabled={guard.blocked || s.is_self || s.id === user?.id}
                             loading={
                               deleteMutation.isPending &&
                               deleteMutation.variables === s.id
                             }
-                            onConfirm={() => deleteMutation.mutateAsync(s.id)}
+                            onConfirm={() => {
+                              if (guard.blocked) { alert(guard.message); return Promise.resolve() }
+                              return deleteMutation.mutateAsync(s.id)
+                            }}
                           />
                         </>
                       )}
@@ -256,7 +267,7 @@ function RoleBadge({ role }: { role: StaffRole }) {
     admin: {
       label: 'مدير نظام',
       icon: ShieldCheck,
-      className: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
+      className: 'bg-violet-500/15 text-violet-600 border-violet-500/30',
     },
     manager: {
       label: 'مدير فرع',

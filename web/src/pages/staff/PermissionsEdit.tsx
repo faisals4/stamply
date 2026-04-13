@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRoute } from 'wouter'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
+import { FullPageLoader } from '@/components/ui/spinner'
 import {
   Loader2,
   Save,
@@ -21,7 +22,7 @@ const ROLE_META: Record<
   admin: {
     label: 'مدير النظام',
     icon: ShieldCheck,
-    accent: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
+    accent: 'bg-violet-500/15 text-violet-600 border-violet-500/30',
   },
   manager: {
     label: 'مدير فرع',
@@ -116,7 +117,7 @@ export default function PermissionsEditPage() {
       </header>
 
       {isLoading || !data ? (
-        <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+        <FullPageLoader />
       ) : (
         <>
           <div className="space-y-4 mb-6">

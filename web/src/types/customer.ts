@@ -99,6 +99,23 @@ export interface CashierCardView {
   }
 }
 
+/**
+ * Field names the customer can lock on their central profile. When a
+ * field is in `locked_fields` the merchant API returns 423 Locked on
+ * any attempt to edit it through the tenant customer controller.
+ *
+ * Keep this in sync with the backend `CustomerProfileController::LOCKABLE_FIELDS`
+ * constant and the mobile `LockableField` type.
+ */
+export type LockableField =
+  | 'first_name'
+  | 'last_name'
+  | 'email'
+  | 'birthdate'
+  | 'gender'
+
+export type Gender = 'male' | 'female'
+
 export interface Customer {
   id: number
   phone: string
@@ -107,6 +124,14 @@ export interface Customer {
   full_name: string
   email: string | null
   birthdate: string | null
+  gender: Gender | null
+  /** ISO 8601 timestamp — set when the customer proves phone ownership
+   *  via OTP. Read-only from the merchant side. */
+  phone_verified_at: string | null
+  /** Profile fields the customer has locked from merchant edits. Any
+   *  field listed here will cause PUT /customers/{id} to return 423
+   *  if the merchant tries to change it. */
+  locked_fields: LockableField[]
   source_utm: string | null
   issued_cards_count: number
   last_activity_at: string | null

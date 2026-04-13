@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRoute } from 'wouter'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { BackButton } from '@/components/ui/back-button'
 import {
   Bell,
@@ -115,7 +116,7 @@ export default function PushTemplateEditorPage() {
   })
 
   if (isLoading || !template) {
-    return <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+    return <FullPageLoader />
   }
 
   // Rough character budget — most OS banners show ~40 chars of title and

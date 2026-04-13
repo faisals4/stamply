@@ -45,10 +45,14 @@ class FlowEngine
     public function run(AutomationRun $run): void
     {
         // Defensive load — withoutGlobalScopes because the listener may run
-        // outside of an authenticated tenant context.
+        // outside of an authenticated tenant context. Eager-load
+        // `profile` so the template merge vars below can read
+        // first_name/last_name/email/phone via the proxy accessors
+        // without firing lazy queries mid-send.
         $automation = Automation::withoutGlobalScopes()->find($run->automation_id);
         $customer = Customer::withoutGlobalScopes()
             ->withTrashed()
+            ->with('profile')
             ->find($run->customer_id);
 
         if (!$automation || !$customer) {

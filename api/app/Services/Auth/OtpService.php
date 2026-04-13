@@ -50,6 +50,11 @@ class OtpService
     /**
      * Send a fresh code. Returns a structured result so controllers can
      * translate it into whatever JSON shape they prefer.
+     *
+     * Rate-limiting and cooldowns are bypassed while `APP_DEBUG=true`
+     * so developers can iterate on the flow without getting locked
+     * out of their own test phone. Production ships with APP_DEBUG
+     * off, at which point the full 3/hour + 30s cooldown are enforced.
      */
     public function sendCode(string $phone, string $context, ?Tenant $brandTenant = null): SendResult
     {
@@ -58,17 +63,21 @@ class OtpService
             return SendResult::invalidPhone();
         }
 
-        $rateKey = $this->rateKey($normalised, $context);
-        if (RateLimiter::tooManyAttempts($rateKey, self::MAX_REQUESTS_PER_HOUR)) {
-            return SendResult::rateLimited(RateLimiter::availableIn($rateKey));
-        }
+        $bypassLimits = (bool) config('app.debug');
 
-        // Short resend cooldown on top of the hourly limit.
-        $pending = Cache::get($this->pendingKey($normalised, $context));
-        if ($pending && ($pending['sent_at'] ?? 0) > time() - self::RESEND_COOLDOWN_SECONDS) {
-            $wait = self::RESEND_COOLDOWN_SECONDS - (time() - (int) $pending['sent_at']);
+        if (! $bypassLimits) {
+            $rateKey = $this->rateKey($normalised, $context);
+            if (RateLimiter::tooManyAttempts($rateKey, self::MAX_REQUESTS_PER_HOUR)) {
+                return SendResult::rateLimited(RateLimiter::availableIn($rateKey));
+            }
 
-            return SendResult::cooldown($wait);
+            // Short resend cooldown on top of the hourly limit.
+            $pending = Cache::get($this->pendingKey($normalised, $context));
+            if ($pending && ($pending['sent_at'] ?? 0) > time() - self::RESEND_COOLDOWN_SECONDS) {
+                $wait = self::RESEND_COOLDOWN_SECONDS - (time() - (int) $pending['sent_at']);
+
+                return SendResult::cooldown($wait);
+            }
         }
 
         $code = $this->generateCode();
@@ -83,7 +92,9 @@ class OtpService
             self::PENDING_TTL_SECONDS,
         );
 
-        RateLimiter::hit($rateKey, 3600);
+        if (! $bypassLimits) {
+            RateLimiter::hit($this->rateKey($normalised, $context), 3600);
+        }
 
         $brand = $brandTenant?->name ?? 'Stamply';
         $body = "{$brand}: رمز التحقق {$code}. صالح لمدة 5 دقائق.";

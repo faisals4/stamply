@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { useLocation, useRoute } from 'wouter'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, CheckCircle2, Globe, Eye, EyeOff } from 'lucide-react'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { BackButton } from '@/components/ui/back-button'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { getCardApi, createCardApi, updateCardApi } from '@/lib/api/cards'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import { createEmptyCardTemplate } from '@/types/card'
 import type { CardTemplate } from '@/types/card'
 import { CardPreview } from './CardPreview'
@@ -31,6 +33,14 @@ export default function CardEditorPage() {
     enabled: !!cardId,
   })
 
+  const guard = useSubscriptionGuard()
+  const isNewCard = !cardId
+  // Block saves when subscription expired, or when creating a new card at quota limit
+  const writeBlocked = guard.blocked || (isNewCard && !guard.canCreate('cards'))
+  const writeBlockedMessage = guard.blocked
+    ? guard.message
+    : guard.quotaMessage('cards')
+
   const [card, setCard] = useState<CardTemplate | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -48,7 +58,7 @@ export default function CardEditorPage() {
   }, [loadError, setLocation])
 
   if (!card) {
-    return <div className="text-muted-foreground">جارٍ التحميل...</div>
+    return <FullPageLoader />
   }
 
   const update = (patch: Partial<CardTemplate>) => {
@@ -130,7 +140,7 @@ export default function CardEditorPage() {
           {card.status === 'active' ? (
             <Button
               variant="outline"
-              onClick={() => handlePublishToggle('draft')}
+              onClick={() => writeBlocked ? alert(writeBlockedMessage) : handlePublishToggle('draft')}
               disabled={saving}
               title="سيخفي البطاقة ويوقف التسجيلات الجديدة"
             >
@@ -139,9 +149,9 @@ export default function CardEditorPage() {
             </Button>
           ) : (
             <Button
-              onClick={() => handlePublishToggle('active')}
+              onClick={() => writeBlocked ? alert(writeBlockedMessage) : handlePublishToggle('active')}
               disabled={saving}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className={writeBlocked ? 'bg-emerald-600/50' : 'bg-emerald-600 hover:bg-emerald-700'}
               title="سيجعل البطاقة متاحة للعملاء عبر رابط المشاركة"
             >
               <Globe className="w-4 h-4 me-1.5" />
@@ -149,11 +159,19 @@ export default function CardEditorPage() {
             </Button>
           )}
 
-          <Button variant="outline" onClick={handleSave} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => writeBlocked ? alert(writeBlockedMessage) : handleSave()}
+            disabled={saving}
+          >
             <Save className="w-4 h-4 me-1.5" />
             {saving ? 'جارٍ الحفظ...' : 'حفظ'}
           </Button>
-          <Button onClick={handleSaveAndExit} disabled={saving}>
+          <Button
+            onClick={() => writeBlocked ? alert(writeBlockedMessage) : handleSaveAndExit()}
+            disabled={saving}
+            className={writeBlocked ? 'opacity-60' : ''}
+          >
             حفظ وخروج
           </Button>
         </div>

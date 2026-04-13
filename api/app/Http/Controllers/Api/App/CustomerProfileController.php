@@ -3,61 +3,71 @@
 namespace App\Http\Controllers\Api\App;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\CustomerProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Profile endpoints for the authenticated mobile customer.
  *
- * WRITES fan out across every Customer row with this phone so the
- * merchant dashboards stay in sync — if the customer updates their
- * first name in the app, every merchant they've ever signed up with
- * sees the new name. That's the "one real person, many tenant rows"
- * design taken to its logical conclusion.
+ * Since the profile refactor, `$request->user()` returns a
+ * `CustomerProfile` directly — the Sanctum token is now issued
+ * against the central profile model, not a per-tenant Customer row.
+ * Reads and writes hit a single row; no transaction or cross-tenant
+ * fan-out is required because personal data already lives in one
+ * place.
  *
- * Always uses `withoutGlobalScopes()` because `BelongsToTenant` would
- * otherwise filter the query to just the canonical token owner's
- * tenant.
+ * # Locking
+ *
+ * When the customer updates any field here, that field's name is
+ * added to the profile's `locked_fields` JSON array. Merchants can
+ * no longer edit locked fields through their admin panel — they
+ * receive an HTTP 423 with the list of locked fields. Unlock happens
+ * either by the customer clearing the field (setting it to null) or
+ * by a platform admin through `/api/op/customers/unlock`.
  */
 class CustomerProfileController extends Controller
 {
     /**
+     * Fields that can be locked by the customer. The request
+     * validator must accept exactly this set — nothing else ever
+     * lands in `locked_fields`.
+     */
+    private const LOCKABLE_FIELDS = [
+        'first_name',
+        'last_name',
+        'email',
+        'birthdate',
+        'gender',
+    ];
+
+    /**
      * GET /api/app/me
-     * Returns the canonical profile for this phone, with a tenant
-     * count so the client can show "you're a customer at N merchants".
+     * Returns the profile + a live count of the merchants this
+     * customer has a relationship with.
      */
     public function show(Request $request): JsonResponse
     {
-        $phone = $request->user()->phone;
+        /** @var CustomerProfile $profile */
+        $profile = $request->user();
 
-        $customers = Customer::withoutGlobalScopes()
-            ->where('phone', $phone)
-            ->get();
-
-        $canonical = $customers->first();
+        // Reload so we always reflect the latest DB state, even
+        // within a single request that just updated the row.
+        $profile->refresh();
 
         return response()->json([
-            'data' => [
-                'id' => $canonical->id,
-                'phone' => $canonical->phone,
-                'first_name' => $canonical->first_name,
-                'last_name' => $canonical->last_name,
-                'email' => $canonical->email,
-                'locale' => $canonical->locale,
-                'phone_verified_at' => $canonical->phone_verified_at?->toIso8601String(),
-                'tenants_count' => $customers->count(),
-            ],
+            'data' => $this->presentProfile($profile),
         ]);
     }
 
     /**
      * PUT /api/app/me
-     * Body: { first_name?, last_name?, email?, locale? }
+     * Body: { first_name?, last_name?, email?, birthdate?, gender? }
      *
-     * Wrapped in a transaction so a partial failure doesn't leave
-     * tenant rows in inconsistent states.
+     * Updates the central profile row. Any field the customer
+     * touches (non-null, non-empty-string value) becomes locked;
+     * any field they deliberately clear (empty string → null) is
+     * unlocked so merchants can edit it again.
      */
     public function update(Request $request): JsonResponse
     {
@@ -65,25 +75,76 @@ class CustomerProfileController extends Controller
             'first_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['nullable', 'string', 'max:100'],
             'email' => ['nullable', 'email', 'max:255'],
-            'locale' => ['nullable', 'string', 'in:ar,en'],
+            'birthdate' => ['nullable', 'date', 'before:today'],
+            'gender' => ['nullable', 'string', 'in:male,female'],
         ]);
 
-        // Drop null values so we don't blank out fields the client
-        // didn't touch.
-        $patch = array_filter($data, fn ($v) => $v !== null);
+        /** @var CustomerProfile $profile */
+        $profile = $request->user();
 
-        if (empty($patch)) {
+        $currentLocks = $profile->locked_fields ?? [];
+        $newLocks = $currentLocks;
+        $patch = [];
+
+        // Only touch fields the client actually sent (i.e. fields
+        // that exist as keys in the validated payload). Null sent
+        // explicitly = "clear this field and unlock it". Not sent
+        // at all = "leave untouched".
+        foreach (self::LOCKABLE_FIELDS as $field) {
+            if (! array_key_exists($field, $data)) {
+                continue;
+            }
+            $value = $data[$field];
+            if ($value === null || $value === '') {
+                // Clear + unlock
+                $patch[$field] = null;
+                $newLocks = array_values(array_diff($newLocks, [$field]));
+            } else {
+                // Set + lock
+                $patch[$field] = $value;
+                if (! in_array($field, $newLocks, true)) {
+                    $newLocks[] = $field;
+                }
+            }
+        }
+
+        if (empty($patch) && $newLocks === $currentLocks) {
+            // No-op request — just return the current state.
             return $this->show($request);
         }
 
-        $phone = $request->user()->phone;
-
-        DB::transaction(function () use ($phone, $patch) {
-            Customer::withoutGlobalScopes()
-                ->where('phone', $phone)
-                ->update($patch);
-        });
+        $profile->update(array_merge($patch, [
+            'locked_fields' => $newLocks,
+        ]));
 
         return $this->show($request);
+    }
+
+    private function presentProfile(CustomerProfile $profile): array
+    {
+        return [
+            'id' => $profile->id,
+            'phone' => $profile->phone,
+            'first_name' => $profile->first_name,
+            'last_name' => $profile->last_name,
+            'email' => $profile->email,
+            'birthdate' => $profile->birthdate?->toDateString(),
+            'gender' => $profile->gender,
+            'phone_verified_at' => $profile->phone_verified_at?->toIso8601String(),
+            'locked_fields' => $profile->locked_fields ?? [],
+            // How many merchants this customer has signed up with.
+            // Computed live so the mobile "welcome back at N stores"
+            // caption is always accurate.
+            //
+            // `withoutGlobalScopes(['tenant'])` is mandatory here
+            // because `$profile->customers()` inherits the Customer
+            // model's `BelongsToTenant` scope, and the authenticated
+            // user in this request is the CustomerProfile (no
+            // tenant_id attribute) — so the scope would silently
+            // filter every row out.
+            'tenants_count' => $profile->customers()
+                ->withoutGlobalScopes(['tenant'])
+                ->count(),
+        ];
     }
 }

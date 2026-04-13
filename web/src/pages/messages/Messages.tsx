@@ -27,6 +27,7 @@ import {
   type BroadcastMessage,
 } from '@/lib/api/messages'
 import { cn } from '@/lib/utils'
+import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
 import { usePaginatedQuery } from '@/lib/hooks/usePaginatedQuery'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { formatDate } from '@/lib/utils/date'
@@ -37,6 +38,7 @@ import { formatDate } from '@/lib/utils/date'
 export default function MessagesPage() {
   const [, setLocation] = useLocation()
   const qc = useQueryClient()
+  const guard = useSubscriptionGuard()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -66,7 +68,10 @@ export default function MessagesPage() {
         title="الرسائل"
         subtitle="أرسل دفعات بريد إلكتروني أو SMS لعملائك"
         action={
-          <Button onClick={() => setLocation('/admin/messages/new')}>
+          <Button
+            onClick={() => guard.blocked ? alert(guard.message) : setLocation('/admin/messages/new')}
+            className={guard.blocked ? 'opacity-60' : ''}
+          >
             <Plus className="w-4 h-4 me-1.5" />
             رسالة جديدة
           </Button>
@@ -197,7 +202,7 @@ function ChannelBadge({ channel }: { channel: BroadcastMessage['channel'] }) {
   }
   if (channel === 'email') {
     return (
-      <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 border">
+      <Badge className="bg-violet-500/15 text-violet-600 border-violet-500/30 border">
         <Mail className="w-3 h-3 me-1" />
         إيميل
       </Badge>

@@ -54,7 +54,7 @@ export function ReachStatCards({
             'grid gap-3',
             dense
               ? 'grid-cols-2 md:grid-cols-4'
-              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+              : 'grid-cols-2 lg:grid-cols-4',
           )}
         >
           {/* Wallet first — it's the highest-reach channel for most
@@ -145,13 +145,13 @@ function StatTile({
   // tiles feeling clickable without being loud.
   const accentMap: Record<TileColor, string> = {
     amber: 'text-amber-600 bg-amber-500/10 group-hover:bg-amber-500/15',
-    blue: 'text-blue-600 bg-blue-500/10 group-hover:bg-blue-500/15',
+    blue: 'text-violet-600 bg-violet-500/10 group-hover:bg-violet-500/15',
     emerald: 'text-emerald-600 bg-emerald-500/10 group-hover:bg-emerald-500/15',
     indigo: 'text-indigo-600 bg-indigo-500/10 group-hover:bg-indigo-500/15',
   }
   const pctColorMap: Record<TileColor, string> = {
     amber: 'text-amber-700',
-    blue: 'text-blue-700',
+    blue: 'text-violet-700',
     emerald: 'text-emerald-700',
     indigo: 'text-indigo-700',
   }

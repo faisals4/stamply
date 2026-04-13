@@ -105,11 +105,16 @@ class AutomationsTickCommand extends Command
     private function resolveAudience(Automation $auto)
     {
         if ($auto->trigger_type === 'birthday') {
+            // birthdate moved to customer_profiles in the central-profile
+            // refactor — pivot through the profile relation so the filter
+            // uses the new column home.
             return Customer::withoutGlobalScopes()
                 ->where('tenant_id', $auto->tenant_id)
-                ->whereNotNull('birthdate')
-                ->whereMonth('birthdate', now()->month)
-                ->whereDay('birthdate', now()->day)
+                ->whereHas('profile', fn ($q) => $q
+                    ->whereNotNull('birthdate')
+                    ->whereMonth('birthdate', now()->month)
+                    ->whereDay('birthdate', now()->day)
+                )
                 ->whereNull('deleted_at')
                 ->get();
         }

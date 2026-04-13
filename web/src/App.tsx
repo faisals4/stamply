@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { Route, Switch, Redirect, useLocation } from 'wouter'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Direction } from 'radix-ui'
@@ -14,6 +14,19 @@ import OpTenantsPage from '@/pages/op/OpTenants'
 import OpTenantDetailPage from '@/pages/op/OpTenantDetail'
 import OpProfilePage from '@/pages/op/OpProfile'
 import OpSettingsPage from '@/pages/op/OpSettings'
+import OpSettingsVapidPage from '@/pages/op/settings/OpSettingsVapid'
+import OpSettingsApnsPage from '@/pages/op/settings/OpSettingsApns'
+import OpSettingsFcmPage from '@/pages/op/settings/OpSettingsFcm'
+import OpSettingsAppleWalletPage from '@/pages/op/settings/OpSettingsAppleWallet'
+import OpSettingsGoogleWalletPage from '@/pages/op/settings/OpSettingsGoogleWallet'
+import OpSettingsFeaturesPage from '@/pages/op/settings/OpSettingsFeatures'
+import OpAppSettingsPage from '@/pages/op/OpAppSettings'
+import OpBannerManagementPage from '@/pages/op/OpBannerManagement'
+import OpSubscriptionsPage from '@/pages/op/OpSubscriptions'
+import OpSubscriptionDetailPage from '@/pages/op/OpSubscriptionDetail'
+import OpPlansPage from '@/pages/op/OpPlans'
+import OpCustomersPage from '@/pages/op/OpCustomers'
+import OpCustomerDetailPage from '@/pages/op/OpCustomerDetail'
 import LandingPage from '@/pages/landing/Landing'
 import LoginPage from '@/pages/auth/Login'
 import SignupPage from '@/pages/auth/Signup'
@@ -47,6 +60,7 @@ import IntegrationPushPage from '@/pages/settings/integrations/IntegrationPush'
 import SmsTemplateEditorPage from '@/pages/settings/integrations/SmsTemplateEditor'
 import PushTemplateEditorPage from '@/pages/settings/integrations/PushTemplateEditor'
 import ScanPage from '@/pages/scan/Scan'
+import SubscriptionPage from '@/pages/subscription/Subscription'
 import PublicRegisterPage from '@/pages/public/Register'
 import IssuedCardPage from '@/pages/public/IssuedCard'
 
@@ -87,9 +101,10 @@ function TenantRoutes() {
           <RequirePerm permission="dashboard.view"><DashboardPage /></RequirePerm>
         </Route>
 
-        {/* Profile is intentionally NOT permission-gated — every authenticated
-            user is allowed to manage their own profile. */}
+        {/* Profile and subscription are intentionally NOT permission-gated — every
+            authenticated user is allowed to view their profile and subscription. */}
         <Route path="/admin/profile" component={ProfilePage} />
+        <Route path="/admin/subscription" component={SubscriptionPage} />
 
         <Route path="/admin/cards">
           <RequirePerm permission="cards.view"><CardsListPage /></RequirePerm>
@@ -231,8 +246,21 @@ function OpRoutes() {
         <Route path="/op" component={OpDashboardPage} />
         <Route path="/op/profile" component={OpProfilePage} />
         <Route path="/op/tenants" component={OpTenantsPage} />
+        <Route path="/op/subscriptions" component={OpSubscriptionsPage} />
+        <Route path="/op/subscriptions/:id" component={OpSubscriptionDetailPage} />
+        <Route path="/op/plans" component={OpPlansPage} />
+        <Route path="/op/app-settings" component={OpAppSettingsPage} />
+        <Route path="/op/app-settings/banners" component={OpBannerManagementPage} />
         <Route path="/op/settings" component={OpSettingsPage} />
+        <Route path="/op/settings/vapid" component={OpSettingsVapidPage} />
+        <Route path="/op/settings/apns" component={OpSettingsApnsPage} />
+        <Route path="/op/settings/fcm" component={OpSettingsFcmPage} />
+        <Route path="/op/settings/apple-wallet" component={OpSettingsAppleWalletPage} />
+        <Route path="/op/settings/google-wallet" component={OpSettingsGoogleWalletPage} />
+        <Route path="/op/settings/features" component={OpSettingsFeaturesPage} />
         <Route path="/op/tenants/:id" component={OpTenantDetailPage} />
+        <Route path="/op/customers" component={OpCustomersPage} />
+        <Route path="/op/customers/:id" component={OpCustomerDetailPage} />
         <Route>
           <Redirect to="/op" />
         </Route>

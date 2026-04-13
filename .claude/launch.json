@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "/Users/faisalalanazi/.local/node/bin/node",
+      "runtimeArgs": ["/Users/faisalalanazi/Desktop/Stamply/mobile/node_modules/.bin/expo", "start", "--web", "--port", "8081"],
+      "cwd": "mobile",
+      "env": { "PATH": "/Users/faisalalanazi/.local/node/bin:/usr/bin:/bin" },
+      "port": 8081
+    },
+    {
+      "name": "web-admin",
+      "runtimeExecutable": "/Users/faisalalanazi/.local/node/bin/node",
+      "runtimeArgs": ["/Users/faisalalanazi/Desktop/Stamply/web/node_modules/vite/bin/vite.js", "--port", "5174"],
+      "cwd": "web",
+      "env": { "PATH": "/Users/faisalalanazi/.local/node/bin:/usr/bin:/bin" },
+      "port": 5174
+    }
+  ]
+}

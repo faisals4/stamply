@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useRoute, Link } from 'wouter'
+import { FullPageLoader } from '@/components/ui/spinner'
 import { useQuery } from '@tanstack/react-query'
 import {
   Phone,
@@ -43,7 +44,7 @@ export default function CustomerDetailPage() {
   })
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">جارٍ التحميل...</div>
+    return <FullPageLoader />
   }
 
   if (error || !customer) {
@@ -92,7 +93,7 @@ export default function CustomerDetailPage() {
       {/* Customer-level stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         <StatBox
-          icon={<CreditCard className="w-4 h-4 text-blue-500" />}
+          icon={<CreditCard className="w-4 h-4 text-violet-500" />}
           label="البطاقات"
           value={customer.stats.cards_count}
         />
@@ -231,7 +232,7 @@ function CardBlock({
                 type="button"
                 onClick={copyLink}
                 aria-label={copied ? 'تم النسخ' : 'نسخ رابط البطاقة'}
-                className="w-9 h-9 inline-flex items-center justify-center rounded-md border bg-card text-foreground hover:bg-accent transition"
+                className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] hover:bg-[#8B52F6] hover:text-white transition-all duration-200"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -246,7 +247,7 @@ function CardBlock({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="فتح البطاقة"
-                className="w-9 h-9 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:opacity-90 transition"
+                className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-[#8B52F6] text-white hover:bg-[#7A42E0] transition-all duration-200"
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
@@ -285,7 +286,7 @@ function CardBlock({
             <MiniStat
               label="إجمالي المكتسبة"
               value={card.stats.stamps_earned}
-              color="text-blue-500"
+              color="text-violet-500"
             />
             <MiniStat
               label="مكافآت مستبدلة"
