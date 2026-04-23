@@ -12,10 +12,10 @@
     {
       "name": "web-admin",
       "runtimeExecutable": "/Users/faisalalanazi/.local/node/bin/node",
-      "runtimeArgs": ["/Users/faisalalanazi/Developer/Stamply/web/node_modules/vite/bin/vite.js", "--port", "5174"],
+      "runtimeArgs": ["/Users/faisalalanazi/Developer/Stamply/web/node_modules/vite/bin/vite.js", "--port", "5190"],
       "cwd": "web",
       "env": { "PATH": "/Users/faisalalanazi/.local/node/bin:/usr/bin:/bin" },
-      "port": 5174
+      "port": 5190
     }
   ]
 }

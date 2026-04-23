@@ -450,7 +450,7 @@ export default function OpDocumentationPage() {
           </Callout>
           <Callout variant="info">
             <B>اللون الأساسي برتقالي:</B> استُبدل اللون البنفسجي
-            (<Code>#8B52F6</Code>) بالبرتقالي (<Code>#eb592e</Code>)
+            (<Code>#eb592e</Code>) بالبرتقالي (<Code>#eb592e</Code>)
             في الويب كلّه. classes <Code>violet-*</Code> و{' '}
             <Code>purple-*</Code> استُبدلت بـ <Code>orange-*</Code>.
           </Callout>

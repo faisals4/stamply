@@ -110,7 +110,7 @@ export function StoreCard({ store, onPress }: Props) {
         {/* Badges row — delivery is always present, cashback is optional */}
         <View className="mt-3 flex-row flex-wrap items-center" style={{ gap: 8 }}>
           <View className="flex-row items-center rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5">
-            <Bike color="#003BC0" size={12} strokeWidth={2} />
+            <Bike color="#eb592e" size={12} strokeWidth={2} />
             <Text className="ms-1.5 text-xs font-semibold text-brand">
               {t('stores.delivery', { fee: store.deliveryFee })}
             </Text>

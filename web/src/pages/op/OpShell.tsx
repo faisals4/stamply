@@ -62,11 +62,11 @@ function OpSidebar({ onNavigate }: { onNavigate?: () => void }) {
               className={cn(
                 'flex items-center gap-3 px-3 h-10 rounded-lg text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-[#8B52F6] text-white'
-                  : 'text-[#635C70] hover:bg-[#8B52F6]/10 hover:text-[#8B52F6] group',
+                  ? 'bg-[#eb592e] text-white'
+                  : 'text-[#635C70] hover:bg-[#eb592e]/10 hover:text-[#eb592e] group',
               )}
             >
-              <Icon className={cn('w-5 h-5 shrink-0', isActive ? 'text-white' : 'text-[#A4A1AA] group-hover:text-[#8B52F6]')} />
+              <Icon className={cn('w-5 h-5 shrink-0', isActive ? 'text-white' : 'text-[#A4A1AA] group-hover:text-[#eb592e]')} />
               <span className="flex-1">{item.label}</span>
               {isActive && (
                 <span className="w-2 h-2 rounded-full bg-violet-300 shrink-0" />

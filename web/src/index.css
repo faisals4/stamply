@@ -42,7 +42,7 @@
   --radius: 0.625rem;
 
   /* Stamply brand primary — #eb592e (orange). Replaces the previous
-     purple #8B52F6 across the entire dashboard (op + admin + landing).
+     purple #eb592e across the entire dashboard (op + admin + landing).
      Applied via --primary/--brand CSS variables so the whole shadcn
      token system (buttons, rings, links, sidebar accents) flips in
      one place. */

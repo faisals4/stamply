@@ -226,7 +226,7 @@ function ShareLinkButton({ slug }: { slug: string }) {
           rel="noopener noreferrer"
           onClick={copy}
           aria-label={copied ? 'تم النسخ' : 'نسخ رابط البطاقة للعملاء'}
-          className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] hover:bg-[#8B52F6] hover:text-white transition-all duration-200"
+          className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] hover:bg-[#eb592e] hover:text-white transition-all duration-200"
         >
           {copied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
         </a>

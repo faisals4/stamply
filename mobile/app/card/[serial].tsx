@@ -66,7 +66,7 @@ export default function CardDetailScreen() {
           <BackArrow color="#111827" size={28} />
         </Pressable>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#003BC0" />
+          <ActivityIndicator size="large" color="#eb592e" />
         </View>
       </SafeAreaView>
     );

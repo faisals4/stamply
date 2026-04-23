@@ -166,7 +166,7 @@ export function ActivityTimeline({
           never goes blank while the next page is in flight. */}
       {showInlineSpinner ? (
         <View className="mt-3 items-center py-2">
-          <ActivityIndicator size="small" color="#003BC0" />
+          <ActivityIndicator size="small" color="#eb592e" />
         </View>
       ) : null}
 
@@ -182,7 +182,7 @@ export function ActivityTimeline({
           <Text className="text-[11px] font-semibold text-brand">
             {t('card_detail.show_more')}
           </Text>
-          <ChevronDown color="#003BC0" size={14} strokeWidth={2} />
+          <ChevronDown color="#eb592e" size={14} strokeWidth={2} />
         </Pressable>
       ) : !showInlineSpinner && hasNextPage ? (
         <Pressable
@@ -193,7 +193,7 @@ export function ActivityTimeline({
           <Text className="text-[11px] font-semibold text-brand">
             {t('card_detail.load_more')}
           </Text>
-          <ChevronDown color="#003BC0" size={14} strokeWidth={2} />
+          <ChevronDown color="#eb592e" size={14} strokeWidth={2} />
         </Pressable>
       ) : null}
     </View>
@@ -210,7 +210,7 @@ function ActivityRow({
   const { t } = useTranslation();
   const isStamp = row.type === 'stamp';
   const Icon = isStamp ? StampIcon : Award;
-  const tint = isStamp ? '#003BC0' : '#D97706';
+  const tint = isStamp ? '#eb592e' : '#D97706';
   const tintBg = isStamp ? '#E6EBFA' : '#FEF3C7';
 
   // We branch on `count` manually instead of relying on i18next's

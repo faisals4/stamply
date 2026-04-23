@@ -24,7 +24,7 @@ export default function TabsLayout() {
   if (auth === 'pending') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.page }}>
-        <ActivityIndicator size="large" color="#003BC0" />
+        <ActivityIndicator size="large" color="#eb592e" />
       </View>
     );
   }
@@ -37,7 +37,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#003BC0',
+        tabBarActiveTintColor: '#eb592e',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: [
           {

@@ -39,7 +39,7 @@ export function ConfirmSheet({
   icon: Icon,
   loading,
 }: Props) {
-  const tint = destructive ? '#DC2626' : '#003BC0';
+  const tint = destructive ? '#DC2626' : '#eb592e';
   const tintBg = destructive ? '#FEE2E2' : '#E0F2FE';
 
   return (

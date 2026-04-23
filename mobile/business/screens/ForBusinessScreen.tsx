@@ -25,7 +25,7 @@ import { ScreenContainer } from '../../components/ScreenContainer';
 import { CircleButton } from '../../components/ui/CircleButton';
 
 /** Stamply brand blue — used only on the for-business page & signup/login modals */
-const BLUE = '#003BC0';
+const BLUE = '#eb592e';
 import { MerchantLoginSheet } from './MerchantLoginSheet';
 import { MerchantSignupSheet } from './MerchantSignupSheet';
 import { useMerchantAuth } from '../lib/merchant-auth';

@@ -67,7 +67,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="فتح صفحة التاجر العامة"
-                className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-[#A4A1AA] hover:text-[#8B52F6] hover:bg-[#8B52F6]/10 transition"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-[#A4A1AA] hover:text-[#eb592e] hover:bg-[#eb592e]/10 transition"
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
@@ -116,11 +116,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
               className={cn(
                 'flex items-center gap-3 px-3 h-10 rounded-lg text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-[#8B52F6] text-white'
-                  : 'text-[#635C70] hover:bg-[#8B52F6]/10 hover:text-[#8B52F6] group',
+                  ? 'bg-[#eb592e] text-white'
+                  : 'text-[#635C70] hover:bg-[#eb592e]/10 hover:text-[#eb592e] group',
               )}
             >
-              <Icon className={cn('w-5 h-5 shrink-0', isActive ? 'text-white' : 'text-[#A4A1AA] group-hover:text-[#8B52F6]')} />
+              <Icon className={cn('w-5 h-5 shrink-0', isActive ? 'text-white' : 'text-[#A4A1AA] group-hover:text-[#eb592e]')} />
               <span className="flex-1">{t(item.labelKey)}</span>
               {isActive && (
                 <span className="w-2 h-2 rounded-full bg-violet-300 shrink-0" />
@@ -136,7 +136,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
           <Link
             href="/admin/profile"
             onClick={onNavigate}
-            className="flex items-center gap-2.5 flex-1 min-w-0 hover:bg-[#8B52F6]/5 px-2 py-2 rounded-lg transition"
+            className="flex items-center gap-2.5 flex-1 min-w-0 hover:bg-[#eb592e]/5 px-2 py-2 rounded-lg transition"
             title="الملف الشخصي"
           >
             <Avatar

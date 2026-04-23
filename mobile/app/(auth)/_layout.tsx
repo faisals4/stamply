@@ -19,7 +19,7 @@ export default function AuthLayout() {
   if (auth === 'pending') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' }}>
-        <ActivityIndicator size="large" color="#003BC0" />
+        <ActivityIndicator size="large" color="#eb592e" />
       </View>
     );
   }

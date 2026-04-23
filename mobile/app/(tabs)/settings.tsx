@@ -140,7 +140,7 @@ export default function SettingsScreen() {
         {/* Profile card */}
         <View className={`mx-4 mt-4 ${surfaces.card} p-4`}>
           {isLoading ? (
-            <ActivityIndicator color="#003BC0" />
+            <ActivityIndicator color="#eb592e" />
           ) : (
             <>
               <Text className="text-lg font-bold text-gray-900">{fullName}</Text>

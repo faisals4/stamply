@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="فتح القائمة"
-            className="w-10 h-10 -ms-1 inline-flex items-center justify-center rounded-lg text-[#635C70] hover:text-[#8B52F6] hover:bg-[#8B52F6]/10 transition"
+            className="w-10 h-10 -ms-1 inline-flex items-center justify-center rounded-lg text-[#635C70] hover:text-[#eb592e] hover:bg-[#eb592e]/10 transition"
           >
             <Menu className="w-5 h-5" />
           </button>

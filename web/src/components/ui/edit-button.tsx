@@ -39,8 +39,8 @@ export interface EditButtonProps {
 
 const BASE_CLASSES =
   'w-12 h-12 sm:w-10 sm:h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] shrink-0 transition-all duration-200 ' +
-  'hover:bg-[#8B52F6] hover:text-white [&:hover>svg]:text-white [&:hover_svg]:text-white ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B52F6] focus-visible:ring-offset-2 ' +
+  'hover:bg-[#eb592e] hover:text-white [&:hover>svg]:text-white [&:hover_svg]:text-white ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eb592e] focus-visible:ring-offset-2 ' +
   'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-[#635C70]'
 
 export function EditButton({

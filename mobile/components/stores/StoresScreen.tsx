@@ -30,7 +30,7 @@ import { useLocaleDirStyle } from '../../lib/useLocaleDirStyle';
  * the layout can grow without turning into a 400-line monolith.
  *
  * Visual language follows the rest of the customer app: brand blue
- * (#003BC0) for the active chip and the delivery badge, gray-50
+ * (#eb592e) for the active chip and the delivery badge, gray-50
  * page background, rounded-2xl cards with a gray-200 border, and
  * lucide icons at strokeWidth ~1.5–2 to match the bottom tab bar.
  */

@@ -181,7 +181,7 @@ export function MerchantSignupSheet({ visible, onClose }: Props) {
             onPress={handleSignup}
             loading={loading}
             disabled={!canSubmit}
-            color="#003BC0"
+            color="#eb592e"
           />
         </View>
       </KeyboardAvoidingView>

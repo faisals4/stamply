@@ -232,7 +232,7 @@ function CardBlock({
                 type="button"
                 onClick={copyLink}
                 aria-label={copied ? 'تم النسخ' : 'نسخ رابط البطاقة'}
-                className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] hover:bg-[#8B52F6] hover:text-white transition-all duration-200"
+                className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-gray-100 text-[#635C70] hover:bg-[#eb592e] hover:text-white transition-all duration-200"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -247,7 +247,7 @@ function CardBlock({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="فتح البطاقة"
-                className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-[#8B52F6] text-white hover:bg-[#7A42E0] transition-all duration-200"
+                className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-[#eb592e] text-white hover:bg-[#c9481f] transition-all duration-200"
               >
                 <ExternalLink className="w-4 h-4" />
               </a>

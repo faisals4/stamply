@@ -103,7 +103,7 @@ export default function OpLoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#8B52F6] hover:bg-[#8B52F6]/90"
+              className="w-full bg-[#eb592e] hover:bg-[#eb592e]/90"
             >
               {loading ? (
                 <>

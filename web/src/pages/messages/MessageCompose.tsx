@@ -35,7 +35,7 @@ const VARIABLES = {
 const DEFAULT_SMS = 'مرحبا {{customer.first_name}}، شكراً لك على ولائك لـ {{brand.name}}!'
 
 const DEFAULT_EMAIL_HTML = `<div style="font-family: -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1f2937;">
-  <h1 style="color: #8B52F6; margin: 0 0 16px;">مرحباً {{customer.first_name}}!</h1>
+  <h1 style="color: #eb592e; margin: 0 0 16px;">مرحباً {{customer.first_name}}!</h1>
   <p style="font-size: 16px; line-height: 1.6;">
     شكراً لك على ولائك لـ <strong>{{brand.name}}</strong>. لدينا عرض خاص اليوم نتمنى أن يعجبك.
   </p>

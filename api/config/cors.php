@@ -26,6 +26,8 @@ return [
         'http://127.0.0.1:5174',
         'http://localhost:5173',
         'http://127.0.0.1:5173',
+        // Reserved ngrok tunnel — mobile app + external testers hit this
+        'https://stamply.ngrok.app',
         // Expo web dev server (mobile/)
         'http://localhost:8081',
         'http://127.0.0.1:8081',

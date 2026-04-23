@@ -112,7 +112,7 @@ export function MerchantLoginSheet({ visible, onClose }: Props) {
             onPress={handleLogin}
             loading={isLoading}
             disabled={!canSubmit}
-            color="#003BC0"
+            color="#eb592e"
           />
         </View>
       </KeyboardAvoidingView>

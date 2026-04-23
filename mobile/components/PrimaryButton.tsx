@@ -9,7 +9,7 @@ type Props = {
   variant?: 'primary' | 'ghost';
   /** Optional icon rendered before the label. */
   icon?: React.ReactNode;
-  /** Override the primary background color (e.g. '#003BC0' for Stamply blue). */
+  /** Override the primary background color (e.g. '#eb592e' for Stamply blue). */
   color?: string;
 };
 

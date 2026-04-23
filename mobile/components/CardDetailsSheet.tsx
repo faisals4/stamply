@@ -62,7 +62,7 @@ export function CardDetailsSheet({ card, tenant, visible, onClose }: Props) {
     return (
       <BottomSheet visible={visible} onClose={onClose} align="top">
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#003BC0" />
+          <ActivityIndicator color="#eb592e" />
         </View>
       </BottomSheet>
     );
@@ -187,7 +187,7 @@ export function CardDetailsSheet({ card, tenant, visible, onClose }: Props) {
             shows Apple, Android shows Google, desktop shows both. */}
         <View className="items-center" style={{ gap: 12 }}>
           {walletLoading ? (
-            <ActivityIndicator color="#003BC0" />
+            <ActivityIndicator color="#eb592e" />
           ) : (
             <>
               {showApple && (
