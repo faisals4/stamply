@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* IBM Plex Sans Arabic — self-hosted from web/public/fonts/, served
+   by Vite's static file handler at /fonts/*. Each weight is its own
+   font-family name (not a weight variant of one family) so we can
+   target the exact .ttf file via CSS font-family without ever asking
+   the browser to synthesize a fake bold from the Regular file. */
+@font-face {
+  font-family: 'IBMPlexSansArabic-Regular';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBMPlexSansArabic-Medium';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBMPlexSansArabic-SemiBold';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBMPlexSansArabic-Bold';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-Bold.woff2') format('woff2');
+}
+
+/* Apply IBM Plex Sans Arabic to every element on the web bundle.
+   React Native Text components compile to <div>/<span> with inline
+   `font-family: System` that wins over body inheritance, so we
+   target `*` with `!important` to override that.
+
+   Then we layer per-weight overrides on the EXISTING NativeWind
+   utility classes (`.font-medium`, `.font-semibold`, `.font-bold`)
+   so any Text already using those classes automatically loads the
+   matching .ttf file — zero find-and-replace in component code.
+
+   `.font-bold { font-weight: 700 }` keeps coming through from
+   NativeWind on the same element; that's harmless because the Bold
+   .ttf file already encodes weight 700, so the browser just picks
+   the right glyph table. */
+* {
+  font-family: 'IBMPlexSansArabic-Regular', system-ui, -apple-system, sans-serif !important;
+}
+.font-medium {
+  font-family: 'IBMPlexSansArabic-Medium', system-ui, -apple-system, sans-serif !important;
+}
+.font-semibold {
+  font-family: 'IBMPlexSansArabic-SemiBold', system-ui, -apple-system, sans-serif !important;
+}
+.font-bold {
+  font-family: 'IBMPlexSansArabic-Bold', system-ui, -apple-system, sans-serif !important;
+}
+
+/* iOS Safari auto-zooms into any focused text field whose computed
+   font-size is under 16px. Force every native form control to 16px
+   so the whole web app is immune to the zoom-on-focus jump for the
+   search bar, the OTP code, the phone input, and any future field.
+   `!important` is needed because react-native-web emits font-size
+   as an inline style that would otherwise win specificity. */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}

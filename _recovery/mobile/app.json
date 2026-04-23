@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Stamply",
+    "slug": "stamply",
+    "scheme": "stamply",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon-app.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "sa.stamply.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "نحتاج موقعك عشان نعرض لك المتاجر القريبة ونرتبها حسب المسافة"
+      }
+    },
+    "android": {
+      "package": "sa.stamply.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-app.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon-app.png"
+    },
+    "experiments": {
+      "baseUrl": "/app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#8B52F6"
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "https://stamply.ngrok.app/api"
+    }
+  }
+}
