@@ -6,10 +6,6 @@
  * Western digits in every numeric field — mixing Arabic-Indic digits in
  * dates would look inconsistent. Passing `numberingSystem: 'latn'` keeps the
  * month/day names in Arabic while the digits stay `0-9`.
- *
- * All callers should import from here instead of rolling their own
- * `.toLocaleString(...)` calls — that way, a future locale or timezone
- * change is a one-line edit.
  */
 
 type DateInput = string | number | Date | null | undefined

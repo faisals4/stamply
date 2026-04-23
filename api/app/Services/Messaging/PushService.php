@@ -4,6 +4,7 @@ namespace App\Services\Messaging;
 
 use App\Models\PushToken;
 use App\Models\Tenant;
+use App\Services\Messaging\Firebase\FcmTransport;
 use App\Services\PlatformSettingsService;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\Subscription;
@@ -28,7 +29,19 @@ class PushService
 {
     public function __construct(
         private readonly PlatformSettingsService $platformSettings = new PlatformSettingsService(),
+        private readonly ?FcmTransport $fcm = null,
     ) {}
+
+    /**
+     * Lazily resolve the FCM transport from the container. Doing it lazily
+     * (rather than requiring the DI injection in the constructor) keeps
+     * `new PushService()` calls working in legacy code paths that still
+     * instantiate the service without the container.
+     */
+    private function fcmTransport(): FcmTransport
+    {
+        return $this->fcm ?? app(FcmTransport::class);
+    }
 
     /**
      * Merged credentials for Web Push / APNs / FCM — tenant override on
@@ -174,16 +187,26 @@ class PushService
 
     /**
      * Dispatch a notification to a single token. Returns true on success,
-     * false on failure. Uses the right transport per platform:
-     *   - web:     minishlink/web-push via VAPID
-     *   - ios:     APNs over HTTP/2 (still stubbed — awaits .p8 wiring)
-     *   - android: FCM HTTP v1 (still stubbed — awaits service account)
+     * false on failure. Routes to the right transport per platform:
+     *   - web:            minishlink/web-push via VAPID
+     *   - ios / android:  Firebase Cloud Messaging (FCM HTTP v1)
+     *
+     * Extra payload (card serial, deep link, etc.) can be passed in
+     * `$data`; it surfaces to the mobile app via RemoteMessage.data
+     * and to the browser via the worker's `push` event payload.
+     *
+     * @param  array<string,scalar|null> $data  Extra key/value pairs.
+     *                                          Values are coerced to
+     *                                          string before the FCM
+     *                                          send (FCM requirement).
      */
     public function dispatch(
         PushToken $token,
         string $title,
         string $body,
         ?string $url = null,
+        array $data = [],
+        ?string $imageUrl = null,
     ): bool {
         $config = $this->getConfig($token->tenant);
         if (! $config['enabled']) {
@@ -202,15 +225,30 @@ class PushService
 
         try {
             if ($token->platform === 'web') {
-                return $this->dispatchWebPush($token, $config, $title, $body, $url);
+                return $this->dispatchWebPush($token, $config, $title, $body, $url, $imageUrl);
             }
 
-            // Native platforms still stubbed — log intent, return false so
-            // the caller sees a failed row and can switch platforms later.
-            Log::info('[push] native transport not implemented yet', [
-                'tenant_id' => $token->tenant_id,
+            if ($token->platform === 'ios' || $token->platform === 'android') {
+                // Inject the URL into the data payload so the mobile app
+                // can deep-link on tap. Keep the `url` key name identical
+                // to the Web Push payload for consistency across platforms.
+                $mergedData = $data;
+                if ($url !== null) {
+                    $mergedData['url'] = $url;
+                }
+
+                return $this->fcmTransport()->send(
+                    $token,
+                    $title,
+                    $body,
+                    $mergedData,
+                    $imageUrl,
+                );
+            }
+
+            Log::warning('[push] unknown platform', [
+                'token_id' => $token->id,
                 'platform' => $token->platform,
-                'title' => $title,
             ]);
 
             return false;
@@ -239,6 +277,7 @@ class PushService
         string $title,
         string $body,
         ?string $url,
+        ?string $imageUrl = null,
     ): bool {
         $public = $config['vapid_public_key'] ?? '';
         $private = $config['vapid_private_key'] ?? '';
@@ -289,6 +328,14 @@ class PushService
             'title' => $title,
             'body' => $body,
             'url' => $resolvedUrl,
+            // Browsers read `image` for a large hero image (Notification.image)
+            // and `icon` as the small square that sits next to the title.
+            // Send the same URL for both — every modern browser (Chrome,
+            // Edge, Firefox on desktop, mobile Chrome) picks the one it
+            // needs and ignores the other. Safari ignores `image` entirely,
+            // so `icon` is the only thing it renders.
+            'image' => $imageUrl,
+            'icon' => $imageUrl,
             'tenant_id' => $token->tenant_id,
         ]);
 

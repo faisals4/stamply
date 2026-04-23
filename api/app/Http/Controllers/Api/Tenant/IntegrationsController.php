@@ -129,7 +129,7 @@ class IntegrationsController extends Controller
     }
 
     /* ──────────────────────────────────────────────────────────── */
-    /*  SMS (Twilio)                                                 */
+    /*  SMS (Twilio) — tenant-level for marketing templates         */
     /* ──────────────────────────────────────────────────────────── */
 
     /**
@@ -211,14 +211,13 @@ class IntegrationsController extends Controller
     /**
      * GET /api/integrations/push
      *
-     * On the FIRST visit, generates VAPID keys for the tenant so the
-     * merchant doesn't have to deal with CLI tools or external generators.
-     * Subsequent visits return the same keys.
+     * Returns the push integration config visible to this tenant:
+     * APNs credentials (tenant-scoped) + platform VAPID public key
+     * (shared). VAPID keys are managed centrally by the platform
+     * operator via /op — tenants no longer generate their own.
      */
     public function showPush(): JsonResponse
     {
-        $this->push->ensureVapidKeys();
-
         return response()->json(['data' => $this->push->getConfigMasked()]);
     }
 

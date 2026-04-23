@@ -5,6 +5,10 @@ namespace App\Services\Notifications;
 use App\Jobs\SendApplePassUpdate;
 use App\Models\CardTemplate;
 use App\Models\IssuedCard;
+use App\Models\PushToken;
+use App\Models\SentNotification;
+use App\Models\SentNotificationRecipient;
+use App\Services\Messaging\PushService;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -33,6 +37,20 @@ use Illuminate\Support\Facades\Log;
  */
 class CardNotificationDispatcher
 {
+    public function __construct(
+        private readonly ?PushService $push = null,
+    ) {}
+
+    /**
+     * Resolve the PushService lazily. A nullable constructor parameter
+     * lets legacy code still call `new CardNotificationDispatcher()`
+     * without wiring up the container — we fall back to app() here.
+     */
+    private function pushService(): PushService
+    {
+        return $this->push ?? app(PushService::class);
+    }
+
     public function fire(IssuedCard $card, string $triggerKey): void
     {
         // Eager-load the customer + profile so `renderVariables`
@@ -81,13 +99,139 @@ class CardNotificationDispatcher
             'pass_updated_at' => $now,
         ]);
 
+        // Channel 1 — Apple Wallet pass update (silent push via APNs
+        // directly; surfaces to the user as a lock-screen notification
+        // because the pass's `changeMessage` template picks up the new
+        // announcement_text).
         SendApplePassUpdate::dispatch($card->id)->afterCommit();
+
+        // Channel 2 — Native push to the Stamply app (FCM). This is
+        // what a customer who has NOT added the card to Apple Wallet
+        // will see: the notification arrives on their iPhone / Android
+        // Stamply app and deep-links into the card detail screen.
+        //
+        // The two channels complement each other — a customer with
+        // both will see the update twice (once on their Wallet pass,
+        // once as a standard push). That redundancy is intentional and
+        // cheap: users typically notice only the surface where they
+        // already engage with the brand.
+        $this->dispatchFcmForTrigger($card, $triggerKey, $body);
 
         Log::info('[card-notification] fired', [
             'trigger' => $triggerKey,
             'card_id' => $card->id,
             'customer_id' => $card->customer_id,
             'locale' => $locale,
+        ]);
+    }
+
+    /**
+     * Fan out the trigger message to every PushToken owned by the
+     * customer, via FCM. Writes an audit row in `sent_notifications`
+     * and one row per device in `sent_notification_recipients`.
+     *
+     * The notification title is the brand/tenant name so the user knows
+     * which loyalty programme the alert belongs to; the body is the
+     * rendered trigger message already built above.
+     */
+    private function dispatchFcmForTrigger(
+        IssuedCard $card,
+        string $triggerKey,
+        string $body,
+    ): void {
+        $customerId = $card->customer_id;
+        if (! $customerId) {
+            return;
+        }
+
+        // Load the enough of the customer to know the central profile
+        // id — native mobile tokens are registered against the profile,
+        // not the tenant-scoped Customer row.
+        $card->loadMissing('customer');
+        $profileId = $card->customer?->customer_profile_id;
+
+        // Find native tokens by EITHER:
+        //   - tenant-scoped customer_id (legacy PWA tokens that the
+        //     public /issued/{serial}/push-token endpoint registered)
+        //   - customer_profile_id (tokens registered by the mobile app
+        //     via /api/app/devices) — the key path going forward
+        $tokens = PushToken::query()
+            ->whereIn('platform', ['ios', 'android'])
+            ->where(function ($q) use ($customerId, $profileId) {
+                $q->where('customer_id', $customerId);
+                if ($profileId) {
+                    $q->orWhere('customer_profile_id', $profileId);
+                }
+            })
+            ->get()
+            // Same physical device can appear twice (once by customer_id,
+            // once by profile_id) if a user upgraded from PWA → app.
+            // De-dupe by the token string so we don't send twice.
+            ->unique('token')
+            ->values();
+
+        if ($tokens->isEmpty()) {
+            // No native devices — the Wallet update on its own is the
+            // only channel. This is the common case for customers who
+            // only use the web PWA.
+            return;
+        }
+
+        $title = $card->template?->tenant?->name
+            ?? $card->template?->name
+            ?? 'Stamply';
+
+        $notification = SentNotification::create([
+            'type' => SentNotification::TYPE_EVENT,
+            'source' => $triggerKey,
+            'tenant_id' => $card->template?->tenant_id,
+            'customer_id' => $customerId,
+            'issued_card_id' => $card->id,
+            'title' => $title,
+            'body' => $body,
+            'data' => [
+                'card_serial' => $card->apple_pass_serial ?: (string) $card->id,
+                'trigger' => $triggerKey,
+            ],
+            'target_count' => $tokens->count(),
+            'status' => SentNotification::STATUS_SENDING,
+            'sent_at' => now(),
+        ]);
+
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($tokens as $token) {
+            $ok = $this->pushService()->dispatch(
+                token: $token,
+                title: $title,
+                body: $body,
+                url: null,
+                data: [
+                    'card_serial' => (string) ($card->apple_pass_serial ?: $card->id),
+                    'trigger' => $triggerKey,
+                    'notification_id' => (string) $notification->id,
+                ],
+            );
+
+            SentNotificationRecipient::create([
+                'sent_notification_id' => $notification->id,
+                'customer_id' => $customerId,
+                'push_token_id' => $token->id,
+                'platform' => $token->platform,
+                'status' => $ok
+                    ? SentNotificationRecipient::STATUS_SENT
+                    : SentNotificationRecipient::STATUS_FAILED,
+                'sent_at' => now(),
+            ]);
+
+            $ok ? $sent++ : $failed++;
+        }
+
+        $notification->update([
+            'sent_count' => $sent,
+            'failed_count' => $failed,
+            'status' => SentNotification::STATUS_COMPLETED,
         ]);
     }
 

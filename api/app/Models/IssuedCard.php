@@ -32,10 +32,12 @@ class IssuedCard extends Model
         'last_used_at',
         'expires_at',
         'source_utm',
+        'archived_by_customer_at',
     ];
 
     protected $casts = [
         'stamps_count' => 'integer',
+        'archived_by_customer_at' => 'datetime',
         'pass_updated_at' => 'integer',
         'announcement_updated_at' => 'integer',
         'issued_at' => 'datetime',
@@ -58,12 +60,15 @@ class IssuedCard extends Model
 
     public static function generateUniqueSerial(): string
     {
-        // Crockford-style alphabet: no 0/O, 1/I/L confusion
+        // Crockford-style alphabet (31 chars): no 0/O, 1/I/L confusion.
+        // 6 chars × 31 alphabet = 31^6 ≈ 887 million possible serials,
+        // enough for any single-tenant loyalty program while staying
+        // short enough for customers to read aloud / type into a kiosk.
         $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
         do {
             $serial = '';
-            for ($i = 0; $i < 12; $i++) {
+            for ($i = 0; $i < 6; $i++) {
                 $serial .= $alphabet[random_int(0, strlen($alphabet) - 1)];
             }
         } while (static::withoutGlobalScopes()->where('serial_number', $serial)->exists());

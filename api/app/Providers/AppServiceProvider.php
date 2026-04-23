@@ -7,6 +7,7 @@ use App\Events\StampGiven;
 use App\Listeners\AutomationDispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,5 +37,12 @@ class AppServiceProvider extends ServiceProvider
         // load on a missing relation throws LazyLoadingViolation in
         // dev/testing — safe in prod (disabled) to avoid 500s.
         Model::preventLazyLoading(! app()->isProduction());
+
+        // Safety net: if production is ever deployed with APP_DEBUG=true,
+        // Laravel will leak stack traces and env data in error responses.
+        // Log once on boot so it surfaces in log aggregation / alerts.
+        if (app()->isProduction() && config('app.debug')) {
+            Log::critical('[security] APP_DEBUG=true in production — stack traces will leak to clients.');
+        }
     }
 }

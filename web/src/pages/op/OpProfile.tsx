@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/ui/page-header'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useOpAuth } from '@/lib/auth/opAuth'
 import {
   getOpProfile,
@@ -191,40 +192,37 @@ export default function OpProfilePage() {
 
         <div>
           <Label htmlFor="op-cur-pw" className="text-foreground">كلمة المرور الحالية</Label>
-          <Input
+          <PasswordInput
             id="op-cur-pw"
-            type="password"
             required
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            dir="ltr"
+            autoComplete="current-password"
             className="mt-1.5 bg-muted border-border text-foreground"
           />
         </div>
 
         <div>
           <Label htmlFor="op-new-pw" className="text-foreground">كلمة المرور الجديدة</Label>
-          <Input
+          <PasswordInput
             id="op-new-pw"
-            type="password"
             required
             minLength={8}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            dir="ltr"
+            autoComplete="new-password"
             className="mt-1.5 bg-muted border-border text-foreground"
           />
         </div>
 
         <div>
           <Label htmlFor="op-confirm-pw" className="text-foreground">تأكيد كلمة المرور الجديدة</Label>
-          <Input
+          <PasswordInput
             id="op-confirm-pw"
-            type="password"
             required
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            dir="ltr"
+            autoComplete="new-password"
             className="mt-1.5 bg-muted border-border text-foreground"
           />
         </div>

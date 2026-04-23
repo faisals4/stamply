@@ -41,8 +41,12 @@
 :root {
   --radius: 0.625rem;
 
-  /* Stamply brand primary — #8B52F6 */
-  --brand: #8B52F6;
+  /* Stamply brand primary — #eb592e (orange). Replaces the previous
+     purple #8B52F6 across the entire dashboard (op + admin + landing).
+     Applied via --primary/--brand CSS variables so the whole shadcn
+     token system (buttons, rings, links, sidebar accents) flips in
+     one place. */
+  --brand: #eb592e;
 
   /* Light mode */
   --background: oklch(1 0 0);
@@ -51,7 +55,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #8B52F6;
+  --primary: #eb592e;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);

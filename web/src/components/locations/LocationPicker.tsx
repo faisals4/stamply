@@ -24,10 +24,15 @@ interface Props {
  * - Empty state links the user to /admin/locations to add branches.
  */
 export function LocationPicker({ value, onChange, max = 10 }: Props) {
-  const { data: locations = [], isLoading, error } = useQuery({
+  // listLocations returns a Paginated envelope, not a bare array.
+  // Extracting `.data` here prevents `locations.map is not a function`
+  // crashes that would wipe this picker (and its parent form) into
+  // a blank screen.
+  const { data: page, isLoading, error } = useQuery({
     queryKey: ['locations'],
-    queryFn: listLocations,
+    queryFn: () => listLocations(),
   })
+  const locations = page?.data ?? []
 
   const selectedSet = new Set(value)
   const atCap = value.length >= max

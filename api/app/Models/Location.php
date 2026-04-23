@@ -14,7 +14,9 @@ class Location extends Model
     protected $fillable = [
         'tenant_id',
         'name',
+        'name_en',
         'address',
+        'address_en',
         'lat',
         'lng',
         'geofence_radius_m',

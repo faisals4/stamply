@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { sanitizePassword } from '@/lib/sanitize-password'
 import { useI18n } from '@/i18n'
 import { createStaff, type StaffRole } from '@/lib/api/staff'
 import { listLocations } from '@/lib/api/locations'
@@ -38,11 +39,15 @@ export function StaffFormModal({ open, onOpenChange, onCreated }: Props) {
   const [locationIds, setLocationIds] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const { data: locations = [] } = useQuery({
+  // listLocations returns a Paginated envelope, not a bare array.
+  // Without this unwrap `locations.map` would throw and blank the
+  // modal (same bug that was crashing StaffEdit).
+  const { data: page } = useQuery({
     queryKey: ['locations'],
-    queryFn: listLocations,
+    queryFn: () => listLocations(),
     enabled: open,
   })
+  const locations = page?.data ?? []
 
   useEffect(() => {
     if (!open) return
@@ -133,13 +138,18 @@ export function StaffFormModal({ open, onOpenChange, onCreated }: Props) {
 
           <div>
             <Label htmlFor="staff-password">{t('password')}</Label>
+            {/* Admin creates a temp password for the new staff member.
+                Rendered as plain text (not type=password) so the owner
+                can read it while copying to the employee. Sanitizer
+                strips Arabic + whitespace silently — same ban-list as
+                PasswordInput. */}
             <Input
               id="staff-password"
               type="text"
               required
               minLength={8}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => setPassword(sanitizePassword(e.target.value))}
               dir="ltr"
               placeholder="TempPass@1"
               className="mt-1.5 font-mono text-sm"

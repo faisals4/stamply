@@ -18,11 +18,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | SMS provider (Twilio)
+    | SMS provider (Twilio) — tenant-level for marketing templates
     |--------------------------------------------------------------------------
     |
     | Set TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM in .env.
     | When enabled === false, the service logs messages instead of sending.
+    |
+    | NOTE: OTP SMS is managed at the platform level via /op/settings/otp-sms
+    | and stored in platform_settings (supports SMSCountry + Twilio).
     */
     'sms' => [
         'enabled' => env('MESSAGING_SMS_ENABLED', false),

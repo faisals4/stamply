@@ -37,9 +37,10 @@ export function LanguageToggle() {
     setCurrent(next);
 
     if (Platform.OS === 'web') {
-      if (typeof document !== 'undefined') {
-        document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr';
-        document.documentElement.lang = next;
+      if (typeof window !== 'undefined') {
+        // Reload the page so RN-Web recalculates all layout directions.
+        // Setting document.dir alone doesn't re-layout existing flexbox.
+        window.location.reload();
       }
       return;
     }

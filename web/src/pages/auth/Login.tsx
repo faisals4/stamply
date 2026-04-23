@@ -11,11 +11,15 @@ import { useI18n } from '@/i18n'
 import { useAuth } from '@/lib/auth/auth'
 import { api } from '@/lib/api/client'
 
-// Pre-filled for dev convenience — real auth against Laravel Sanctum.
-const DEV_ADMIN = {
-  email: 'faisal@toot.im',
-  password: 'Faisal@123',
-}
+// Dev convenience pre-fill — only active in local Vite dev builds.
+// Production bundles have import.meta.env.DEV === false, so the form
+// ships empty and the "Dev admin" hint box is hidden.
+const DEV_ADMIN = import.meta.env.DEV
+  ? {
+      email: (import.meta.env.VITE_DEV_ADMIN_EMAIL as string | undefined) ?? '',
+      password: (import.meta.env.VITE_DEV_ADMIN_PASSWORD as string | undefined) ?? '',
+    }
+  : { email: '', password: '' }
 
 export default function LoginPage() {
   const { t } = useI18n()
@@ -121,17 +125,19 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          <div className="mt-6 p-3 rounded-md bg-muted/50 border border-border">
-            <p className="text-xs text-muted-foreground mb-1.5 font-medium">
-              مدير النظام (Dev)
-            </p>
-            <p className="text-xs text-muted-foreground font-mono" dir="ltr">
-              {DEV_ADMIN.email}
-            </p>
-            <p className="text-xs text-muted-foreground font-mono" dir="ltr">
-              {DEV_ADMIN.password}
-            </p>
-          </div>
+          {import.meta.env.DEV && DEV_ADMIN.email ? (
+            <div className="mt-6 p-3 rounded-md bg-muted/50 border border-border">
+              <p className="text-xs text-muted-foreground mb-1.5 font-medium">
+                مدير النظام (Dev)
+              </p>
+              <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+                {DEV_ADMIN.email}
+              </p>
+              <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+                {DEV_ADMIN.password}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
 

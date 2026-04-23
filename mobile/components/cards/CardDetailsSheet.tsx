@@ -18,12 +18,19 @@ import { ActivityTimeline } from './ActivityTimeline';
 import { RewardReadyBanner } from './RewardReadyBanner';
 import { RewardLadder } from './RewardLadder';
 import { colors } from '../../lib/colors';
+import { useLocaleDirStyle } from '../../lib/useLocaleDirStyle';
 
 type Props = {
   card: CardFull | null;
   tenant: Tenant | null;
   visible: boolean;
   onClose: () => void;
+  /** Whether this card is currently archived. Drives the button label. */
+  isArchived?: boolean;
+  /** Called when the user taps "Hide Card" or "Restore Card". */
+  onArchiveToggle?: () => void;
+  /** Show a spinner on the archive button while the mutation is in flight. */
+  archiveLoading?: boolean;
 };
 
 /**
@@ -54,15 +61,16 @@ function walletBadgeUrl(provider: 'apple' | 'google', locale: string): string {
   return `${host}/wallet-badges/${file}`;
 }
 
-export function CardDetailsSheet({ card, tenant, visible, onClose }: Props) {
+export function CardDetailsSheet({ card, tenant, visible, onClose, isArchived = false, onArchiveToggle, archiveLoading = false }: Props) {
   const { t, i18n } = useTranslation();
+  const localeDirStyle = useLocaleDirStyle();
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
 
   if (!card) {
     return (
       <BottomSheet visible={visible} onClose={onClose} align="top">
-        <View className="flex-1 items-center justify-center">
+        <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FFFFFF' }}>
           <ActivityIndicator color={colors.brand.DEFAULT} />
         </View>
       </BottomSheet>
@@ -73,7 +81,12 @@ export function CardDetailsSheet({ card, tenant, visible, onClose }: Props) {
   const requiredForNext = firstReward?.stamps_required ?? 0;
   const readyToRedeem =
     requiredForNext > 0 ? Math.floor(card.stamps_count / requiredForNext) : 0;
-  const title = card.name ?? tenant?.name ?? '';
+  // Title fallback chain — mirrors web `CardVisual.tsx`:
+  //   1. design.labels.title  (per-card title override set in the editor)
+  //   2. card.name             (canonical card template name)
+  //   3. tenant.name            (brand name — last-resort fallback)
+  const designLabelTitle = (card.design as any)?.labels?.title;
+  const title = designLabelTitle || card.name || tenant?.name || '';
   const customerName = card.customer_name ?? '';
 
   /**
@@ -144,6 +157,7 @@ export function CardDetailsSheet({ card, tenant, visible, onClose }: Props) {
     <BottomSheet visible={visible} onClose={onClose} align="top">
       <ScrollView
         className="flex-1"
+        style={{ backgroundColor: '#FFFFFF' }}
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 16,
@@ -212,6 +226,35 @@ export function CardDetailsSheet({ card, tenant, visible, onClose }: Props) {
           initialStamps={card.stamps_history}
           initialRedemptions={card.redemptions_history}
         />
+
+        {/* Archive / Restore toggle — full-width white button with a
+            gray border at the very bottom of the sheet. Doesn't affect
+            the card's real status — purely a customer display preference. */}
+        {onArchiveToggle && (
+          <Pressable
+            onPress={onArchiveToggle}
+            disabled={archiveLoading}
+            style={{
+              marginTop: 8,
+              borderWidth: 1,
+              borderColor: '#D1D5DB',
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#ffffff',
+              opacity: archiveLoading ? 0.6 : 1,
+            }}
+          >
+            {archiveLoading ? (
+              <ActivityIndicator size="small" color="#6B7280" />
+            ) : (
+              <Text style={{ fontSize: 14, color: isArchived ? colors.brand.DEFAULT : '#6B7280' }}>
+                {isArchived ? t('cards.unarchive_card') : t('cards.archive_card')}
+              </Text>
+            )}
+          </Pressable>
+        )}
       </ScrollView>
     </BottomSheet>
   );

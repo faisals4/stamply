@@ -52,7 +52,7 @@ export async function sendTestEmail(
 }
 
 /* ─────────────────────────────────────────────────────────────── */
-/*  SMS (Twilio)                                                    */
+/*  SMS (Twilio) — tenant-level for marketing templates             */
 /* ─────────────────────────────────────────────────────────────── */
 
 export interface SmsConfig {

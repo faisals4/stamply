@@ -6,6 +6,8 @@ import { Loader2, Save, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PasswordInput } from '@/components/ui/password-input'
+import { sanitizePassword } from '@/lib/sanitize-password'
 import { Avatar } from '@/components/ui/avatar-img'
 import { useI18n } from '@/i18n'
 import {
@@ -26,16 +28,30 @@ export default function StaffEditPage() {
   const id = params?.id
   const qc = useQueryClient()
 
-  const { data: staff, isLoading } = useQuery({
+  const { data: staff, isLoading, isError, error: fetchError } = useQuery({
     queryKey: ['staff', 'detail', id],
     queryFn: () => getStaff(id!),
     enabled: !!id,
+    // 404 is an expected terminal state — don't retry or the page
+    // stays on "loading" for 30s while query-client runs its 3×
+    // exponential back-off.
+    retry: (failureCount, err) => {
+      if (err instanceof AxiosError && err.response?.status === 404) return false
+      return failureCount < 2
+    },
   })
 
-  const { data: locations = [] } = useQuery({
+  // `listLocations()` returns a Paginated<Location> envelope
+  // (`{ data: Location[], meta: {...} }`), NOT a bare array. The
+  // previous code destructured with `data: locations = []`, so when
+  // the query resolved `locations` became the envelope object and
+  // `locations.map` crashed with "not a function" — wiping out the
+  // whole page into a blank screen. Extract the inner array.
+  const { data: locationsPage } = useQuery({
     queryKey: ['locations'],
-    queryFn: listLocations,
+    queryFn: () => listLocations(),
   })
+  const locations = locationsPage?.data ?? []
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -109,10 +125,37 @@ export default function StaffEditPage() {
     passwordMutation.mutate()
   }
 
-  if (isLoading || !staff) {
+  if (isLoading) {
     return (
-      <div className="min-h-64 flex items-center justify-center text-muted-foreground text-sm">
-        {t('loading')}
+      <div className="max-w-3xl">
+        <BackButton href="/admin/managers" label={t('staff')} />
+        <div className="min-h-64 flex items-center justify-center text-muted-foreground text-sm">
+          {t('loading')}
+        </div>
+      </div>
+    )
+  }
+
+  // Fetch completed — either 404 or unexpected error. Previously the
+  // component returned the loading view forever because `!staff` was
+  // grouped with `isLoading`, which hid the real state from the user.
+  if (isError || !staff) {
+    const notFound =
+      fetchError instanceof AxiosError &&
+      fetchError.response?.status === 404
+    return (
+      <div className="max-w-3xl">
+        <BackButton href="/admin/managers" label={t('staff')} />
+        <div className="rounded-xl border border-border bg-card p-10 text-center">
+          <h2 className="text-lg font-semibold mb-2">
+            {notFound ? 'المستخدم غير موجود' : 'تعذر تحميل بيانات المستخدم'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {notFound
+              ? 'ربما تم حذفه أو أن الرابط غير صحيح.'
+              : 'حاول تحديث الصفحة. لو استمرت المشكلة تواصل مع الدعم.'}
+          </p>
+        </div>
       </div>
     )
   }
@@ -120,7 +163,7 @@ export default function StaffEditPage() {
   return (
     <div className="max-w-3xl">
       {/* Breadcrumb */}
-      <BackButton href="/admin/managers" label="{t('staff')}" />
+      <BackButton href="/admin/managers" label={t('staff')} />
 
       <header className="mb-6 flex items-center gap-3">
         <Avatar name={staff.name} email={staff.email} size={48} />
@@ -258,11 +301,16 @@ export default function StaffEditPage() {
 
         <div>
           <Label htmlFor="edit-password">كلمة المرور الجديدة</Label>
+          {/* Staff password is intentionally `type="text"` here so an
+              admin assigning a new password can read it while they
+              type and copy it to the employee. We still sanitize
+              Arabic + whitespace inline — same ban-list as the
+              PasswordInput component, just without the show/hide toggle. */}
           <Input
             id="edit-password"
             type="text"
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
+            onChange={(e) => setNewPassword(sanitizePassword(e.target.value))}
             dir="ltr"
             placeholder="8 أحرف على الأقل"
             className="mt-1.5 font-mono"

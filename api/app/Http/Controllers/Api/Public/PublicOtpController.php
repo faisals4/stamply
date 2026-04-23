@@ -67,18 +67,15 @@ class PublicOtpController extends Controller
             ->where('serial_number', $data['serial'])
             ->first();
 
-        if (! $card || ! $card->customer || ! $card->customer->profile) {
+        // Return a generic "unavailable" response for both "card doesn't exist"
+        // and "already verified" to prevent enumeration of valid serials or
+        // discovery of which cards have verified phones.
+        if (! $card || ! $card->customer || ! $card->customer->profile
+            || $card->customer->profile->isPhoneVerified()) {
             return response()->json([
-                'error' => 'card_not_found',
-                'message' => 'البطاقة غير موجودة',
+                'error' => 'verification_unavailable',
+                'message' => 'التحقق غير متاح لهذه البطاقة',
             ], 404);
-        }
-
-        if ($card->customer->profile->isPhoneVerified()) {
-            return response()->json([
-                'error' => 'already_verified',
-                'message' => 'الرقم موثّق بالفعل',
-            ], 409);
         }
 
         $result = $this->otp->sendCode(
@@ -134,8 +131,8 @@ class PublicOtpController extends Controller
 
         if (! $card || ! $card->customer || ! $card->customer->profile) {
             return response()->json([
-                'error' => 'card_not_found',
-                'message' => 'البطاقة غير موجودة',
+                'error' => 'verification_unavailable',
+                'message' => 'التحقق غير متاح لهذه البطاقة',
             ], 404);
         }
 

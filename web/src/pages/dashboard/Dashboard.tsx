@@ -17,7 +17,6 @@ import { StatCard } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { ReachStatCards } from '@/components/messaging/ReachStatCards'
 import { TrialExpiredBanner, SubscriptionExpiringBanner } from '@/components/banners/TrialExpiredBanner'
-
 export default function DashboardPage() {
   const { t } = useI18n()
   const { user } = useAuth()
@@ -43,6 +42,12 @@ export default function DashboardPage() {
         title={`${t('welcomeBack')}، ${user?.name ?? '...'}`}
         subtitle={t('dashboard')}
       />
+
+      {expiredData
+        ? <TrialExpiredBanner data={expiredData} />
+        : daysRemaining != null && daysRemaining <= 15
+          ? <SubscriptionExpiringBanner daysRemaining={daysRemaining} />
+          : null}
 
       {expiredData
         ? <TrialExpiredBanner data={expiredData} />

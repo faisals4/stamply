@@ -24,7 +24,6 @@ import { MessageContentEditor } from '@/components/messaging/MessageContentEdito
 import { ReachStatCards } from '@/components/messaging/ReachStatCards'
 import { BackButton } from '@/components/ui/back-button'
 import { useSubscriptionGuard } from '@/lib/subscription/useSubscriptionGuard'
-
 const VARIABLES = {
   'customer.first_name': 'الاسم الأول',
   'customer.full_name': 'الاسم الكامل',

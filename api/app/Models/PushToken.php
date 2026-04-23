@@ -22,6 +22,7 @@ class PushToken extends Model
     protected $fillable = [
         'tenant_id',
         'customer_id',
+        'customer_profile_id',
         'platform',
         'token',
         'device_info',

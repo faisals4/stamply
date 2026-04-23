@@ -10,6 +10,16 @@ import { Logo } from '@/components/brand/Logo'
 import { useOpAuth } from '@/lib/auth/opAuth'
 import { opLogin } from '@/lib/api/op'
 
+// Dev convenience pre-fill — only active in local Vite dev builds.
+// Production bundles have import.meta.env.DEV === false, so the form
+// ships empty and the hint box is hidden.
+const DEV_OP = import.meta.env.DEV
+  ? {
+      email: (import.meta.env.VITE_DEV_OP_EMAIL as string | undefined) ?? '',
+      password: (import.meta.env.VITE_DEV_OP_PASSWORD as string | undefined) ?? '',
+    }
+  : { email: '', password: '' }
+
 /**
  * /op/login — SaaS operator login. Separate from /admin/login; only
  * platform_admins can authenticate here.
@@ -17,8 +27,8 @@ import { opLogin } from '@/lib/api/op'
 export default function OpLoginPage() {
   const { login } = useOpAuth()
   const [, setLocation] = useLocation()
-  const [email, setEmail] = useState('op@stamply.dev')
-  const [password, setPassword] = useState('Op@123')
+  const [email, setEmail] = useState(DEV_OP.email)
+  const [password, setPassword] = useState(DEV_OP.password)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -106,17 +116,19 @@ export default function OpLoginPage() {
             </Button>
           </form>
 
-          <div className="mt-5 p-3 rounded-md bg-muted/50 border">
-            <p className="text-[11px] text-muted-foreground mb-1 font-medium">
-              مدير المنصة (Dev)
-            </p>
-            <p className="text-[11px] text-muted-foreground font-mono" dir="ltr">
-              op@stamply.dev
-            </p>
-            <p className="text-[11px] text-muted-foreground font-mono" dir="ltr">
-              Op@123
-            </p>
-          </div>
+          {import.meta.env.DEV && DEV_OP.email ? (
+            <div className="mt-5 p-3 rounded-md bg-muted/50 border">
+              <p className="text-[11px] text-muted-foreground mb-1 font-medium">
+                مدير المنصة (Dev)
+              </p>
+              <p className="text-[11px] text-muted-foreground font-mono" dir="ltr">
+                {DEV_OP.email}
+              </p>
+              <p className="text-[11px] text-muted-foreground font-mono" dir="ltr">
+                {DEV_OP.password}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

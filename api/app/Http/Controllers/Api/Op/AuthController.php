@@ -7,6 +7,7 @@ use App\Models\PlatformAdmin;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -29,6 +30,12 @@ class AuthController extends Controller
         $admin = PlatformAdmin::where('email', $credentials['email'])->first();
 
         if (! $admin || ! Hash::check($credentials['password'], $admin->password)) {
+            Log::warning('[auth] op login failed', [
+                'email' => $credentials['email'],
+                'ip' => $request->ip(),
+                'user_agent' => (string) $request->userAgent(),
+                'reason' => $admin ? 'bad_password' : 'unknown_email',
+            ]);
             throw ValidationException::withMessages([
                 'email' => ['البريد الإلكتروني أو كلمة المرور غير صحيحة'],
             ]);

@@ -48,7 +48,14 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'Stamply'
   const options = {
     body: payload.body || '',
-    icon: '/favicon.png',
+    // `icon` is the small round thumbnail next to the title. Prefer the
+    // URL the backend sent with the push — fall back to favicon when the
+    // operator didn't attach an image.
+    icon: payload.icon || '/favicon.png',
+    // `image` is the large hero picture rendered below the body on
+    // Chrome/Edge. Safari/Firefox ignore it silently, which is fine — only
+    // set when the backend actually attached one.
+    ...(payload.image ? { image: payload.image } : {}),
     badge: '/favicon.png',
     data: {
       url: payload.url || '/',

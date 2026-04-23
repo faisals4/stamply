@@ -39,7 +39,7 @@ import {
 } from '@/lib/api/sms-templates'
 
 /**
- * /settings/integrations/sms — edit Twilio credentials for SMS.
+ * /settings/integrations/sms — edit Twilio credentials for tenant SMS templates.
  * Mirrors the email integration page.
  */
 export default function IntegrationSmsPage() {

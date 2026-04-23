@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -25,6 +26,12 @@ class AuthController extends Controller
         $user = User::where('email', $credentials['email'])->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+            Log::warning('[auth] tenant login failed', [
+                'email' => $credentials['email'],
+                'ip' => $request->ip(),
+                'user_agent' => (string) $request->userAgent(),
+                'reason' => $user ? 'bad_password' : 'unknown_email',
+            ]);
             throw ValidationException::withMessages([
                 'email' => ['البريد الإلكتروني أو كلمة المرور غير صحيحة'],
             ]);

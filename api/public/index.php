@@ -1,4 +1,9 @@
 <?php
+// debug
+if (str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/app/')) {
+    file_put_contents('/tmp/stamply-debug.log', date('H:i:s')." REQ_URI=".($_SERVER['REQUEST_URI'] ?? '-')." SCRIPT_NAME=".($_SERVER['SCRIPT_NAME'] ?? '-')." PHP_SELF=".($_SERVER['PHP_SELF'] ?? '-')."\n", FILE_APPEND);
+}
+
 
 /*
  * SCRIPT_NAME correction for the Expo web build under /app.

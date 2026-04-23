@@ -121,4 +121,20 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | OTP Test Phone Numbers
+    |--------------------------------------------------------------------------
+    |
+    | Phone numbers that skip real SMS delivery and are verified only with the
+    | OtpService::MASTER_DEV_CODE value. Set AUTH_TEST_PHONES in .env as a
+    | comma-separated list, e.g. AUTH_TEST_PHONES="+966556102002,966556102002".
+    | Leave empty in production to disable test-phone handling entirely.
+    */
+
+    'test_phones' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('AUTH_TEST_PHONES', '+966556102002,966556102002'))
+    ))),
+
 ];

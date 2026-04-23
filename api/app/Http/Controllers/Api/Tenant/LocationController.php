@@ -63,7 +63,13 @@ class LocationController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            // Optional English counterparts — shown in Apple/Google
+            // Wallet when the device locale is non-Arabic, and on the
+            // bilingual customer-facing store directory. Fall back to
+            // the Arabic name/address when null.
+            'name_en' => ['nullable', 'string', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
+            'address_en' => ['nullable', 'string', 'max:255'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'geofence_radius_m' => ['nullable', 'integer', 'min:10', 'max:10000'],

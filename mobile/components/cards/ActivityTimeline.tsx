@@ -137,7 +137,9 @@ export function ActivityTimeline({
 
   const hasAnything = fullRows.length > 0;
   if (!hasAnything && !expanded) {
-    // Nothing to show at all — hide the whole block.
+    // Hide the whole block when the card has no stamps or
+    // redemptions yet. The block reappears once the customer
+    // earns their first stamp.
     return null;
   }
 
@@ -173,7 +175,8 @@ export function ActivityTimeline({
       {/* Show-more toggle. The first press expands from preview →
           paginated mode and kicks off the initial fetch; subsequent
           presses pull the next page. Hidden while the spinner is up
-          so the two don't stack. */}
+          so the two don't stack. Also hidden when the card has no
+          activity yet — nothing to load. */}
       {!showInlineSpinner && !expanded ? (
         <Pressable
           onPress={() => setExpanded(true)}

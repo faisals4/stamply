@@ -4,7 +4,9 @@ export interface Location {
   id: number
   tenant_id: number
   name: string
+  name_en: string | null
   address: string | null
+  address_en: string | null
   lat: number | null
   lng: number | null
   geofence_radius_m: number
@@ -16,7 +18,9 @@ export interface Location {
 
 export interface LocationInput {
   name: string
-  address?: string
+  name_en?: string | null
+  address?: string | null
+  address_en?: string | null
   lat?: number | null
   lng?: number | null
   geofence_radius_m?: number
@@ -33,6 +37,11 @@ export async function listLocations(params?: {
     { params },
   )
   return data
+}
+
+export async function getLocation(id: number | string): Promise<Location> {
+  const { data } = await api.get<{ data: Location }>(`/locations/${id}`)
+  return data.data
 }
 
 export async function createLocation(input: LocationInput): Promise<Location> {
