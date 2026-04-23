@@ -1,5 +1,5 @@
 import { Link } from 'wouter'
-import { Image } from 'lucide-react'
+import { Image, MessageSquare, Smartphone } from 'lucide-react'
 
 const sections = [
   {
@@ -7,6 +7,18 @@ const sections = [
     icon: Image,
     title: 'التحكم بالبنرات',
     href: '/op/app-settings/banners',
+  },
+  {
+    id: 'otp-sms',
+    icon: MessageSquare,
+    title: 'إعدادات رسائل OTP',
+    href: '/op/app-settings/otp-sms',
+  },
+  {
+    id: 'app-icon',
+    icon: Smartphone,
+    title: 'أيقونة التطبيق',
+    href: '/op/app-settings/app-icon',
   },
 ]
 

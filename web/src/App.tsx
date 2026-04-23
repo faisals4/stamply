@@ -20,6 +20,8 @@ import OpSettingsFcmPage from '@/pages/op/settings/OpSettingsFcm'
 import OpSettingsAppleWalletPage from '@/pages/op/settings/OpSettingsAppleWallet'
 import OpSettingsGoogleWalletPage from '@/pages/op/settings/OpSettingsGoogleWallet'
 import OpSettingsFeaturesPage from '@/pages/op/settings/OpSettingsFeatures'
+import OpSettingsOtpSmsPage from '@/pages/op/settings/OpSettingsOtpSms'
+import OpSettingsAppIconPage from '@/pages/op/settings/OpSettingsAppIcon'
 import OpAppSettingsPage from '@/pages/op/OpAppSettings'
 import OpBannerManagementPage from '@/pages/op/OpBannerManagement'
 import OpSubscriptionsPage from '@/pages/op/OpSubscriptions'
@@ -251,6 +253,8 @@ function OpRoutes() {
         <Route path="/op/plans" component={OpPlansPage} />
         <Route path="/op/app-settings" component={OpAppSettingsPage} />
         <Route path="/op/app-settings/banners" component={OpBannerManagementPage} />
+        <Route path="/op/app-settings/otp-sms" component={OpSettingsOtpSmsPage} />
+        <Route path="/op/app-settings/app-icon" component={OpSettingsAppIconPage} />
         <Route path="/op/settings" component={OpSettingsPage} />
         <Route path="/op/settings/vapid" component={OpSettingsVapidPage} />
         <Route path="/op/settings/apns" component={OpSettingsApnsPage} />

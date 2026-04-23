@@ -217,3 +217,161 @@ export async function updatePlatformFeatures(
   )
   return data.data
 }
+
+/* ─────────────────────────────────────────────────────────────── */
+/*  OTP SMS providers — platform-level (for app OTP only)           */
+/* ─────────────────────────────────────────────────────────────── */
+
+export interface OtpSmsProviderConfig {
+  messagecentral: {
+    enabled: boolean
+    customer_id: string
+    auth_token_masked: string
+    has_auth_token: boolean
+  }
+  unifonic: {
+    enabled: boolean
+    app_sid: string
+    sender_id: string
+  }
+  smscountry: {
+    enabled: boolean
+    auth_key: string
+    auth_token_masked: string
+    has_auth_token: boolean
+    sender_id: string
+  }
+  twilio: {
+    enabled: boolean
+    account_sid: string
+    auth_token_masked: string
+    has_auth_token: boolean
+    from_number: string
+  }
+}
+
+export interface OtpMessageCentralInput {
+  enabled?: boolean
+  customer_id?: string
+  auth_token?: string
+}
+
+export interface OtpUnifonicInput {
+  enabled?: boolean
+  app_sid?: string
+  sender_id?: string
+}
+
+export interface OtpSmsCountryInput {
+  enabled?: boolean
+  auth_key?: string
+  auth_token?: string
+  sender_id?: string
+}
+
+export interface OtpTwilioInput {
+  enabled?: boolean
+  account_sid?: string
+  auth_token?: string
+  from_number?: string
+}
+
+export async function getOtpSmsConfig(): Promise<OtpSmsProviderConfig> {
+  const { data } = await opApi.get<{ data: OtpSmsProviderConfig }>('/op/settings/otp-sms')
+  return data.data
+}
+
+export async function updateOtpMessageCentral(
+  patch: OtpMessageCentralInput,
+): Promise<OtpSmsProviderConfig> {
+  const { data } = await opApi.put<{ data: OtpSmsProviderConfig }>(
+    '/op/settings/otp-sms/messagecentral',
+    patch,
+  )
+  return data.data
+}
+
+export async function updateOtpUnifonic(
+  patch: OtpUnifonicInput,
+): Promise<OtpSmsProviderConfig> {
+  const { data } = await opApi.put<{ data: OtpSmsProviderConfig }>(
+    '/op/settings/otp-sms/unifonic',
+    patch,
+  )
+  return data.data
+}
+
+export async function updateOtpSmsCountry(
+  patch: OtpSmsCountryInput,
+): Promise<OtpSmsProviderConfig> {
+  const { data } = await opApi.put<{ data: OtpSmsProviderConfig }>(
+    '/op/settings/otp-sms/smscountry',
+    patch,
+  )
+  return data.data
+}
+
+export async function updateOtpTwilio(
+  patch: OtpTwilioInput,
+): Promise<OtpSmsProviderConfig> {
+  const { data } = await opApi.put<{ data: OtpSmsProviderConfig }>(
+    '/op/settings/otp-sms/twilio',
+    patch,
+  )
+  return data.data
+}
+
+export interface OtpSmsTestResponse {
+  ok: boolean
+  message: string
+}
+
+export async function testOtpSms(
+  provider: 'messagecentral' | 'unifonic' | 'smscountry' | 'twilio',
+  to: string,
+): Promise<OtpSmsTestResponse> {
+  const { data } = await opApi.post<OtpSmsTestResponse>(
+    '/op/settings/otp-sms/test',
+    { provider, to },
+  )
+  return data
+}
+
+// ─── Mobile app icon variant ────────────────────────────────────
+
+export type AppIconVariantKey =
+  | 'default'
+  | 'white'
+  | 'ramadan'
+  | 'eid'
+  | 'national_day'
+
+export interface AppIconVariant {
+  key: AppIconVariantKey
+  label_ar: string
+  label_en: string
+  is_default: boolean
+  is_active: boolean
+}
+
+export interface AppIconConfig {
+  active: AppIconVariantKey
+  variants: AppIconVariant[]
+}
+
+export async function getAppIconConfig(): Promise<AppIconConfig> {
+  const { data } = await opApi.get<{ data: AppIconConfig }>(
+    '/op/settings/app-icon',
+  )
+  return data.data
+}
+
+export async function setAppIconVariant(
+  key: AppIconVariantKey,
+): Promise<AppIconConfig> {
+  const { data } = await opApi.put<{ data: AppIconConfig }>(
+    '/op/settings/app-icon',
+    { key },
+  )
+  return data.data
+}
