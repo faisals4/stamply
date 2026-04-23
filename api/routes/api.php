@@ -106,6 +106,11 @@ Route::prefix('app')->group(function () {
         Route::get('/favorites', [\App\Http\Controllers\Api\App\CustomerFavoritesController::class, 'index']);
         Route::post('/favorites/{tenantId}', [\App\Http\Controllers\Api\App\CustomerFavoritesController::class, 'store']);
         Route::delete('/favorites/{tenantId}', [\App\Http\Controllers\Api\App\CustomerFavoritesController::class, 'destroy']);
+
+        // Device registration — mobile pushes FCM token here on login and
+        // whenever the current token (FCM may rotate it) changes.
+        Route::post('/devices', [\App\Http\Controllers\Api\App\CustomerDevicesController::class, 'store']);
+        Route::delete('/devices', [\App\Http\Controllers\Api\App\CustomerDevicesController::class, 'destroy']);
     });
 });
 
@@ -161,6 +166,16 @@ Route::prefix('op')->group(function () {
         // Mobile app alternate icon variant (iOS bundled icons)
         Route::get('/settings/app-icon', [\App\Http\Controllers\Api\Op\AppIconController::class, 'show']);
         Route::put('/settings/app-icon', [\App\Http\Controllers\Api\Op\AppIconController::class, 'update']);
+
+        // Platform-wide push broadcasts (operator-initiated)
+        Route::get('/notifications', [\App\Http\Controllers\Api\Op\NotificationsController::class, 'index']);
+        Route::get('/notifications/stats', [\App\Http\Controllers\Api\Op\NotificationsController::class, 'stats']);
+        Route::post('/notifications/broadcast', [\App\Http\Controllers\Api\Op\NotificationsController::class, 'sendBroadcast']);
+        Route::post('/notifications/upload-image', [\App\Http\Controllers\Api\Op\NotificationsController::class, 'uploadImage']);
+        Route::get('/notifications/{id}', [\App\Http\Controllers\Api\Op\NotificationsController::class, 'show']);
+
+        // OTP/SMS activity reports
+        Route::get('/reports/otp-sms-logs', [\App\Http\Controllers\Api\Op\OtpSmsLogsController::class, 'index']);
 
         Route::get('/tenants', [\App\Http\Controllers\Api\Op\TenantsController::class, 'index']);
         Route::post('/tenants', [\App\Http\Controllers\Api\Op\TenantsController::class, 'store']);

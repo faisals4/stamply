@@ -36,6 +36,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
                 | \Illuminate\Http\Request::HEADER_X_FORWARDED_AWS_ELB,
         );
+
+        // Append CSP, HSTS, X-Content-Type-Options, X-Frame-Options, etc.
+        // to every response. See SecurityHeaders::handle() for the policy.
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

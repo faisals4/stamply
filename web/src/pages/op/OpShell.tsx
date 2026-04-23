@@ -11,6 +11,9 @@ import {
   LogOut,
   Menu,
   ChevronLeft,
+  Bell,
+  BookOpen,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useOpAuth } from '@/lib/auth/opAuth'
@@ -21,10 +24,13 @@ const navItems = [
   { href: '/op', icon: LayoutDashboard, label: 'لوحة التحكم' },
   { href: '/op/tenants', icon: Building2, label: 'التجار' },
   { href: '/op/customers', icon: Users, label: 'العملاء' },
+  { href: '/op/notifications', icon: Bell, label: 'الإشعارات' },
   { href: '/op/subscriptions', icon: CreditCard, label: 'الاشتراكات' },
   { href: '/op/plans', icon: Crown, label: 'الخطط' },
   { href: '/op/app-settings', icon: Smartphone, label: 'إعدادات التطبيق' },
   { href: '/op/settings', icon: Settings, label: 'إعدادات المنصّة' },
+  { href: '/op/reports', icon: BarChart3, label: 'التقارير' },
+  { href: '/op/documentation', icon: BookOpen, label: 'Documentation' },
 ]
 
 function OpSidebar({ onNavigate }: { onNavigate?: () => void }) {

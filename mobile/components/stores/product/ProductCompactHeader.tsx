@@ -27,11 +27,11 @@ export function ProductCompactHeader({ product, onClose, onShare }: Props) {
     <HeaderBar
       title={product.name}
       onBack={onClose}
-      backIcon={<X color={colors.navIcon} size={COMPACT_ICON} strokeWidth={2} />}
+      backIcon={<X color={colors.ink.primary} size={COMPACT_ICON} strokeWidth={2} />}
       endAction={
         <CircleButton
           onPress={onShare}
-          icon={<Share2 color={colors.navIcon} size={COMPACT_ICON} strokeWidth={2} />}
+          icon={<Share2 color={colors.ink.primary} size={COMPACT_ICON} strokeWidth={2} />}
         />
       }
     />

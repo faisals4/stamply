@@ -856,7 +856,7 @@ function InfoTab({
                     flex: 1, fontSize: 14, color: colors.ink.primary, fontWeight: '600',
                     borderWidth: 1, borderColor: colors.ink.border, borderRadius: 10,
                     height: 40, paddingHorizontal: 12,
-                    outlineWidth: 0,
+                    outlineStyle: 'none',
                   } as any]}
                   value={reward.name}
                   placeholder={t('merchant.reward_name_placeholder')}

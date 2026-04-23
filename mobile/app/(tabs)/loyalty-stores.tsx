@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Map as MapIcon, Menu as MenuIcon } from 'lucide-react-native';
+import { Map as MapIcon, Menu as MenuIcon, MapPin } from 'lucide-react-native';
 import { api, TenantLocation } from '../../lib/api';
 import { colors } from '../../lib/colors';
 import { shadows } from '../../lib/shadows';
@@ -16,35 +16,16 @@ import { HeaderBar } from '../../components/ui/HeaderBar';
 import { LoadingState } from '../../components/LoadingState';
 import { EmptyState } from '../../components/EmptyState';
 import { SegmentedToggle } from '../../components/ui/SegmentedToggle';
+import { MiniMapPreview } from '../../components/stores/MiniMapPreview';
+import { NativeMapView } from '../../components/stores/NativeMapView';
+import { StoreLogo } from '../../components/stores/StoreLogo';
+import { useUserLocation } from '../../lib/useUserLocation';
 
 export default function LoyaltyStoresScreen() {
   const { t } = useTranslation();
 
-  // User location
-  const LOC_KEY = 'stamply.user.location';
-  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(() => {
-    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(LOC_KEY);
-        return saved ? JSON.parse(saved) : null;
-      } catch { return null; }
-    }
-    return null;
-  });
-
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setUserLoc(loc);
-          localStorage.setItem(LOC_KEY, JSON.stringify(loc));
-        },
-        () => {},
-        { timeout: 5000 },
-      );
-    }
-  }, []);
+  // User location (works on both web and native)
+  const { loc: userLoc, shouldPrompt: showLocPrompt, requestPermission, status: locStatus } = useUserLocation();
 
   // Paginated tenants sorted by nearest
   const {
@@ -110,10 +91,27 @@ export default function LoyaltyStoresScreen() {
             }}
             scrollEventThrottle={100}
           >
+            {/* Location permission prompt */}
+            {showLocPrompt && !userLoc && (
+              <Pressable
+                onPress={requestPermission}
+                className={`mb-3 flex-row items-center ${surfaces.card} p-3`}
+                style={{ gap: 10 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brand[50], alignItems: 'center', justifyContent: 'center' }}>
+                  <MapPin color={colors.brand.DEFAULT} size={18} strokeWidth={2} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-bold text-gray-900">{t('cards.enable_location_title')}</Text>
+                  <Text className="text-3xs text-gray-400">{t('cards.enable_location_subtitle')}</Text>
+                </View>
+              </Pressable>
+            )}
+
             {/* Mini map preview */}
-            {Platform.OS === 'web' && userLoc && (
+            {userLoc && (
               <Pressable onPress={() => setViewMode('map')} className="mb-3 overflow-hidden rounded-2xl" style={{ height: 150 }}>
-                <MiniMapPreview userLoc={userLoc} tenants={allTenants} />
+                <MiniMapPreview height={150} />
               </Pressable>
             )}
 
@@ -124,13 +122,7 @@ export default function LoyaltyStoresScreen() {
                 className={`flex-row items-center ${surfaces.card} p-3`}
                 style={[shadows.card, { gap: 12 }]}
               >
-                {t_item.logo_url ? (
-                  <Image source={{ uri: t_item.logo_url }} style={{ width: 70, height: 70, borderRadius: 16 }} resizeMode="cover" />
-                ) : (
-                  <View className="items-center justify-center rounded-xl" style={{ width: 70, height: 70, backgroundColor: colors.ink.secondary }}>
-                    <Text className="font-bold text-white" style={{ fontSize: 12 }} numberOfLines={1}>{t_item.name.charAt(0)}</Text>
-                  </View>
-                )}
+                <StoreLogo name={t_item.name} logoUrl={t_item.logo_url} size={70} borderRadius={16} />
                 <View className="flex-1">
                   <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>{t_item.name}</Text>
                   {(t_item as any).description ? (
@@ -175,11 +167,15 @@ function StoresMapView({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selectedTenant = tenants.find((x) => x.id === selectedId);
 
-  const markers = tenants.flatMap((tenant) =>
+  // Build markers from loaded tenants only. The list is already
+  // paginated (20/page), so even after several scroll loads the
+  // total stays manageable. We cap at 100 markers for safety.
+  const allMarkers = tenants.flatMap((tenant) =>
     (tenant.locations ?? [])
       .filter((l: any) => l.lat && l.lng)
-      .map((l: any) => ({ lat: l.lat, lng: l.lng, tid: tenant.id, initial: (tenant.name ?? '?').charAt(0), logo: tenant.logo_url ?? null }))
+      .map((l: any) => ({ id: `${tenant.id}-${l.id}`, lat: l.lat, lng: l.lng, tid: tenant.id, initial: (tenant.name ?? '?').charAt(0), logo: tenant.logo_url ?? null }))
   );
+  const markers = allMarkers.slice(0, 100);
 
   const centerLat = userLoc?.lat ?? (markers.length > 0 ? markers.reduce((s, m) => s + m.lat, 0) / markers.length : 24.7);
   const centerLng = userLoc?.lng ?? (markers.length > 0 ? markers.reduce((s, m) => s + m.lng, 0) / markers.length : 46.7);
@@ -246,10 +242,20 @@ zoomCtrl.addTo(map);
 
   return (
     <View className="flex-1">
-      {Platform.OS === 'web' && (
+      {Platform.OS === 'web' ? (
         <View className="flex-1">
           <iframe srcDoc={leafletHtml} style={{ flex: 1, width: '100%', height: '100%', border: 'none' }} />
         </View>
+      ) : (
+        <NativeMapView
+          userLoc={userLoc}
+          markers={markers.map((m) => ({ id: m.id, lat: m.lat, lng: m.lng, title: m.initial, logo: m.logo }))}
+          height={undefined}
+          onMarkerPress={(id) => {
+            const marker = markers.find((m) => m.id === id);
+            if (marker) setSelectedId(marker.tid);
+          }}
+        />
       )}
       {selectedTenant && (
         <Pressable
@@ -278,37 +284,4 @@ zoomCtrl.addTo(map);
   );
 }
 
-/* ─── Mini Map Preview ─── */
 
-function MiniMapPreview({ userLoc, tenants }: { userLoc: { lat: number; lng: number }; tenants: any[] }) {
-  const nearby = tenants
-    .flatMap((t) => (t.locations ?? []).filter((l: any) => l.lat && l.lng).map((l: any) => ({
-      lat: l.lat, lng: l.lng, initial: (t.name ?? '?').charAt(0), logo: t.logo_url ?? null,
-    })))
-    .filter((m) => Math.abs(m.lat - userLoc.lat) < 0.05 && Math.abs(m.lng - userLoc.lng) < 0.05)
-    .slice(0, 30);
-
-  const html = `<!DOCTYPE html><html><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
-<style>*{margin:0;padding:0}#map{width:100%;height:100vh}
-.mi{background:#fff;border:2px solid #eb592e;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2);color:#eb592e;font-size:10px;font-weight:700;overflow:hidden}
-.mi img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.ml{position:relative;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
-.md{width:12px;height:12px;background:#4285F4;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);z-index:2;position:relative}
-.mp{position:absolute;top:50%;left:50%;width:34px;height:34px;margin-left:-17px;margin-top:-17px;background:rgba(66,133,244,.3);border-radius:50%;z-index:1;animation:p 2s cubic-bezier(0,0,.2,1) infinite}
-@keyframes p{0%{transform:scale(0.3);opacity:.8}50%{opacity:.4}100%{transform:scale(1.2);opacity:0}}</style>
-</head><body><div id="map"></div><script>
-var map=L.map('map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false}).setView([${userLoc.lat},${userLoc.lng}],15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-L.marker([${userLoc.lat},${userLoc.lng}],{icon:L.divIcon({html:'<div class="ml"><div class="mp"></div><div class="md"></div></div>',className:'',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);
-var ms=${JSON.stringify(nearby)};
-ms.forEach(function(m){
-  var c=m.logo?'<img src="'+m.logo+'">':m.initial;
-  L.marker([m.lat,m.lng],{icon:L.divIcon({html:'<div class="mi">'+c+'</div>',className:'',iconSize:[32,32],iconAnchor:[16,16]})}).addTo(map);
-});
-<\/script></body></html>`;
-
-  return <iframe srcDoc={html} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 16, pointerEvents: 'none' }} />;
-}

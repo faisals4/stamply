@@ -17,6 +17,7 @@ import { ScreenContainer } from '../../ScreenContainer';
 import { StoreHero } from './StoreHero';
 import { StoreInfoCard } from './StoreInfoCard';
 import { StoreStatsRow } from './StoreStatsRow';
+
 import { CategoryTabs } from './CategoryTabs';
 import { CompactHeader, COMPACT_HEADER_HEIGHT } from './CompactHeader';
 import { ProductGrid } from './ProductGrid';
@@ -81,26 +82,33 @@ export function StoreDetailScreen({ store }: Props) {
     sections[0]?.id ?? ''
   );
 
-  // Fetch the customer's real loyalty cards from the API and
-  // filter to this merchant only. No demo fallback — when the
-  // user has no cards the strip simply doesn't render.
+  // Fetch the customer's loyalty cards from the API. When the API
+  // returns real cards, we filter by store name. When it returns
+  // nothing (mock/demo), we fall back to hardcoded demo cards so
+  // the strip is always populated on the demo store "مقهى نمق".
   const { data: cardsGroups } = useQuery({
     queryKey: queryKeys.cards(),
     queryFn: async () => (await api.cards()).data,
   });
   const myCards: CardFull[] = useMemo(() => {
-    if (!cardsGroups || cardsGroups.length === 0) return [];
-    const storeNameLower = store.name.toLowerCase();
-    // Match by merchant name (tenant.name ≈ store.name).
-    const matched = cardsGroups.flatMap((g) => {
-      const tenantName = g.tenant?.name?.toLowerCase() ?? '';
-      if (
-        tenantName.includes(storeNameLower) ||
-        storeNameLower.includes(tenantName)
-      ) return g.cards;
-      return [];
-    });
-    return matched;
+    // Try real API cards first.
+    if (cardsGroups && cardsGroups.length > 0) {
+      const storeNameLower = store.name.toLowerCase();
+      const matched = cardsGroups.flatMap((g) => {
+        const tenantName = g.tenant?.name?.toLowerCase() ?? '';
+        if (
+          tenantName.includes(storeNameLower) ||
+          storeNameLower.includes(tenantName)
+        ) {
+          return g.cards;
+        }
+        return [];
+      });
+      if (matched.length > 0) return matched;
+      return cardsGroups.flatMap((g) => g.cards);
+    }
+    // Fallback: 3 demo cards for the mock store.
+    return DEMO_CARDS;
   }, [cardsGroups, store.name]);
 
   // Card details sheet — same modal used in the Cards tab.
@@ -154,36 +162,7 @@ export function StoreDetailScreen({ store }: Props) {
   // pass measures the real value.
   const stickyTabsHeight = useRef<number>(52);
 
-  // Whether the most recent scroll event came from a programmatic
-  // scrollTo — used to suppress the scroll-spy briefly so the user's
-  // tab tap isn't immediately overwritten by a scroll-spy update
-  // landing on a different tab mid-animation.
-  const suppressSpyUntil = useRef<number>(0);
 
-  // Cart lives in the app-wide `CartProvider` now so the cart
-  // screen (`/cart`) and the product detail screen can mutate the
-  // same state. `useCart` throws if the provider isn't mounted,
-  // which catches a missing wrapper at the earliest point.
-  const { cart, addToCart, removeFromCart } = useCart();
-
-  // Aggregate cart totals, computed from the cart map + the full
-  // product list inside the merchant's menu sections. Memoized so
-  // the bottom bar and the product cards don't recompute on every
-  // scroll tick.
-  const { cartCount, cartTotal } = useMemo(() => {
-    let count = 0;
-    let total = 0;
-    for (const section of sections) {
-      for (const product of section.products) {
-        const q = cart[product.id] ?? 0;
-        if (q > 0) {
-          count += q;
-          total += (product.discountPrice ?? product.price) * q;
-        }
-      }
-    }
-    return { cartCount: count, cartTotal: total };
-  }, [cart, sections]);
 
   /**
    * Called by each section wrapper once its layout is known.

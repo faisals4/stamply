@@ -28,7 +28,7 @@ export function CartHeader({ onBack, onClearCart }: Props) {
         onClearCart ? (
           <CircleButton
             onPress={onClearCart}
-            icon={<Trash2 color={colors.navIcon} size={18} strokeWidth={2} />}
+            icon={<Trash2 color={colors.ink.primary} size={18} strokeWidth={2} />}
           />
         ) : undefined
       }

@@ -34,7 +34,7 @@ export function ProductNotes({ value, onChange }: Props) {
         placeholderTextColor="#9CA3AF"
         multiline
         maxLength={MAX_LENGTH}
-        className="rounded-2xl bg-white px-4 py-3 text-sm text-gray-900"
+        className="rounded-2xl bg-gray-100 px-4 py-3 text-sm text-gray-900"
         style={[
           localeDirStyle,
           { minHeight: 80, textAlignVertical: 'top', outlineStyle: 'none' } as any,

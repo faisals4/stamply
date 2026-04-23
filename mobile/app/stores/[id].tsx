@@ -19,20 +19,8 @@ export default function StoreDetailRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const base = STORES.find((s) => s.id === id) ?? STORES[0];
 
-  // Graceful fallback: merge the merchant's identity fields with
-  // STORES[0]'s detail tier when the merchant doesn't have its own.
-  const store =
-    base.menuSections !== undefined
-      ? base
-      : {
-          ...STORES[0],
-          id: base.id,
-          name: base.name,
-          cover: base.cover,
-          logoLabel: base.logoLabel,
-          logoColor: base.logoColor,
-          categories: base.categories,
-        };
+  // Every store now has its own menuSections, so just use it directly.
+  const store = base;
 
   return <StoreDetailScreen store={store} />;
 }

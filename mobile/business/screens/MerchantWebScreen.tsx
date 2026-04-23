@@ -7,6 +7,7 @@ import { HeaderBar } from '../../components/ui/HeaderBar';
 import { useMerchantDrawer } from '../components/MerchantSideDrawer';
 
 
+
 /**
  * Embeds a web admin page inside the mobile app shell.
  *

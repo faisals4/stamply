@@ -27,6 +27,17 @@ export function formatDateTime(input: DateInput, fallback = '—'): string {
   })
 }
 
+/** "25/4/2026، 02:30:45" — date + time with seconds (for logs). */
+export function formatDateTimeFull(input: DateInput, fallback = '—'): string {
+  if (!input) return fallback
+  const d = new Date(input)
+  if (Number.isNaN(d.getTime())) return fallback
+  return d.toLocaleString(LOCALE, {
+    dateStyle: 'short',
+    timeStyle: 'medium',
+  })
+}
+
 /** "25/4/2026" — date only, short form. */
 export function formatDate(input: DateInput, fallback = '—'): string {
   if (!input) return fallback

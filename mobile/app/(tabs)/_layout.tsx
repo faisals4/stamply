@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Tabs, Redirect } from 'expo-router';
-import { CreditCard, Store, Tag, Ellipsis } from 'lucide-react-native';
+import { CreditCard, Store, Tag, Settings as SettingsIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { isAuthenticated } from '../../lib/auth';
-import { colors } from '../../lib/colors';
 
 /**
  * Tabs layout — also acts as the auth gate for every screen inside
@@ -25,7 +24,7 @@ export default function TabsLayout() {
   if (auth === 'pending') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.page }}>
-        <ActivityIndicator size="large" color={colors.brand.DEFAULT} />
+        <ActivityIndicator size="large" color="#003BC0" />
       </View>
     );
   }
@@ -38,7 +37,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#eb592e',
+        tabBarActiveTintColor: '#003BC0',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: [
           {
@@ -47,7 +46,8 @@ export default function TabsLayout() {
               : colors.page,
             borderTopColor: '#E5E7EB',
             paddingTop: 6,
-            height: 60,
+            height: Platform.OS === 'ios' ? 85 : 60,
+            paddingBottom: Platform.OS === 'ios' ? 20 : 0,
           },
           Platform.OS === 'web'
             ? ({
@@ -92,17 +92,8 @@ export default function TabsLayout() {
         options={{
           title: t('settings.title'),
           tabBarIcon: ({ color, size }) => (
-            <Ellipsis color={color} size={size} strokeWidth={0.9} />
+            <SettingsIcon color={color} size={size} strokeWidth={0.9} />
           ),
-        }}
-      />
-      {/* Hidden tab — accessible via router.push but not shown in
-          the bottom bar. The tab bar stays visible because the
-          screen lives inside the (tabs) group. */}
-      <Tabs.Screen
-        name="loyalty-stores"
-        options={{
-          href: null, // hides from tab bar
         }}
       />
     </Tabs>

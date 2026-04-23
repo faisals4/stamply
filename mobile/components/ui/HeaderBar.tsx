@@ -35,7 +35,7 @@ const BUTTON_SIZE = 36;
 export function HeaderBar({ title, subtitle, onBack, backIcon, endAction }: Props) {
   const isRTL = useIsRTL();
   const BackIcon = isRTL ? ChevronRight : ChevronLeft;
-  const defaultBackIcon = <BackIcon color={colors.navIcon} size={20} strokeWidth={2} />;
+  const defaultBackIcon = <BackIcon color={colors.ink.primary} size={20} strokeWidth={2} />;
 
   return (
     <View
@@ -47,7 +47,7 @@ export function HeaderBar({ title, subtitle, onBack, backIcon, endAction }: Prop
           // Semi-transparent so the backdrop blur can show content
           // scrolling underneath. 85% opacity keeps the bar readable
           // while letting the frosted-glass effect come through.
-          backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.90)' : colors.page,
+          backgroundColor: Platform.OS === 'web' ? 'rgba(248, 243, 241, 0.85)' : colors.page,
         },
         Platform.OS === 'web'
           ? ({

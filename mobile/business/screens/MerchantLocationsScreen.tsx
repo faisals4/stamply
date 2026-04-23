@@ -293,4 +293,5 @@ export function MerchantLocationsScreen() {
   );
 }
 
+/** @deprecated Use FormInput from components/ui/FormInput instead */
 const FieldInput = FormInput;

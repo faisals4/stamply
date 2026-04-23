@@ -16,6 +16,7 @@ import { colors } from '../../lib/colors';
 import { FormInput } from '../../components/ui/FormInput';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { BottomSheet } from '../../components/BottomSheet';
+import { sanitizePassword } from '../../lib/sanitizePassword';
 import { useMerchantAuth } from '../lib/merchant-auth';
 
 type Props = {
@@ -61,7 +62,7 @@ export function MerchantLoginSheet({ visible, onClose }: Props) {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View className="px-5 pb-6" style={{ gap: 16 }}>
+        <View className="px-5 pb-6" style={{ gap: 16, backgroundColor: '#FFFFFF' }}>
           {/* Brand header */}
           <View className="items-center" style={{ gap: 6 }}>
             <Image source={require('../../assets/logo-stamply.png')} style={{ height: 28, width: 100 }} resizeMode="contain" />
@@ -81,6 +82,7 @@ export function MerchantLoginSheet({ visible, onClose }: Props) {
             placeholder={t('merchant.email_placeholder') as string}
             keyboardType="email-address"
             autoCapitalize="none"
+            emailMode
             fullWidth
           />
 

@@ -187,7 +187,7 @@ export function BottomSheet({ visible, onClose, children, align = 'bottom' }: Pr
             style={{
               width: '100%',
               maxWidth: 440,
-              backgroundColor: align === 'top' ? '#F9FAFB' : '#ffffff',
+              backgroundColor: '#FFFFFF',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               overflow: 'hidden',

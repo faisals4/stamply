@@ -8,14 +8,12 @@
     "icon": "./assets/icon-app.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "sa.stamply.app"
+      "bundleIdentifier": "sa.stamply.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "نحتاج موقعك عشان نعرض لك المتاجر القريبة ونرتبها حسب المسافة"
+      }
     },
     "android": {
       "package": "sa.stamply.app",
@@ -37,10 +35,33 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#8B52F6"
+        }
+      ]
     ],
     "extra": {
-      "apiUrl": "http://127.0.0.1:8765/api"
+      "apiUrl": "https://stamply.ngrok.app/api"
     }
   }
 }

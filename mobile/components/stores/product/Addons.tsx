@@ -3,7 +3,7 @@ import {
   Text,
   Pressable,
   Image,
-
+  type LayoutChangeEvent,
 } from 'react-native';
 import { Flame } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -154,6 +154,8 @@ export function Addons({
   );
 }
 
+
+
 /**
  * One row inside an addon group. Owns no state — it receives the
  * current quantity and an `onChange` callback, and renders the
@@ -298,4 +300,5 @@ function AddonOptionRow({
     </Pressable>
   );
 }
+
 

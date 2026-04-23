@@ -29,7 +29,8 @@ class CustomerFavoritesController extends Controller
 
         $items = collect($paginator->items())->map(function ($f) {
             $t = $f->tenant;
-            $logo = $t->settings['branding']['logo'] ?? null;
+            $hasLogo = !empty($t->settings['branding']['logo']);
+            $logo = $hasLogo ? url("/api/public/tenant/{$t->id}/logo") : null;
             $description = $t->settings['branding']['description'] ?? null;
             $activeCards = CardTemplate::withoutGlobalScope('tenant')
                 ->where('tenant_id', $t->id)

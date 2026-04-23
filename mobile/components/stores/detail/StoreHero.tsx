@@ -57,7 +57,7 @@ export function StoreHero({ store, onBack }: Props) {
         <CircleButton
           size={HERO_BTN}
           onPress={onBack}
-          icon={<BackIcon color={colors.navIcon} size={HERO_ICON + 4} strokeWidth={2} />}
+          icon={<BackIcon color={colors.ink.primary} size={HERO_ICON + 4} strokeWidth={2} />}
         />
       </View>
 
@@ -65,12 +65,12 @@ export function StoreHero({ store, onBack }: Props) {
       <View className="absolute top-12 end-4 flex-row" style={{ gap: 8 }}>
         <CircleButton
           size={HERO_BTN}
-          icon={<Search color={colors.navIcon} size={HERO_ICON} strokeWidth={2} />}
+          icon={<Search color={colors.ink.primary} size={HERO_ICON} strokeWidth={2} />}
         />
         <FavoriteButton size={HERO_BTN} iconSize={HERO_ICON} />
         <CircleButton
           size={HERO_BTN}
-          icon={<Share2 color={colors.navIcon} size={HERO_ICON} strokeWidth={2} />}
+          icon={<Share2 color={colors.ink.primary} size={HERO_ICON} strokeWidth={2} />}
         />
       </View>
 

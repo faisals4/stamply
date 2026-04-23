@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { View, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
@@ -8,14 +9,23 @@ import { ScreenContainer } from '../components/ScreenContainer';
 import { HeaderBar } from '../components/ui/HeaderBar';
 import { useMerchantDrawer } from '../business/components/MerchantSideDrawer';
 
+const TOKEN_KEY = 'stamply.merchant.token';
+const USER_KEY = 'stamply.merchant.user';
+const WEB_TOKEN_KEY = 'stamply.token';
+const WEB_USER_KEY = 'stamply.user';
+
 export default function MerchantDashboardRoute() {
   const { t } = useTranslation();
   const { menuButton, drawer } = useMerchantDrawer('dashboard');
 
-  // No token bridging needed — the web dashboard reads
-  // stamply.merchant.token directly when in embed mode
-  // (sessionStorage stamply.embed=1), so the customer's
-  // stamply.token is never touched.
+  // Bridge auth
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return;
+    const merchantToken = localStorage.getItem(TOKEN_KEY);
+    const merchantUser = localStorage.getItem(USER_KEY);
+    if (merchantToken) localStorage.setItem(WEB_TOKEN_KEY, merchantToken);
+    if (merchantUser) localStorage.setItem(WEB_USER_KEY, merchantUser);
+  }, []);
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-white">

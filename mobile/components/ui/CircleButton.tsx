@@ -13,7 +13,7 @@ type Props = {
 /**
  * Shared circular icon button used across every header bar and
  * hero overlay in the customer app. Single style — warm cream
- * pill (#F0F0F0), no border, rounded-full. Used in:
+ * pill (#fcefe9), no border, rounded-full. Used in:
  *
  *   - StoreHero (search, share, back)
  *   - CompactHeader (search, share)
@@ -41,7 +41,7 @@ export function CircleButton({
         {
           width: size,
           height: size,
-          backgroundColor: '#F0F0F0',
+          backgroundColor: '#fcefe9',
         },
         style,
       ]}

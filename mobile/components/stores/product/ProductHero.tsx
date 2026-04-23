@@ -37,7 +37,7 @@ export function ProductHero({ product, onClose, onShare }: Props) {
         <CircleButton
           size={HERO_BTN}
           onPress={onClose}
-          icon={<X color={colors.navIcon} size={HERO_ICON} strokeWidth={2} />}
+          icon={<X color={colors.ink.primary} size={HERO_ICON} strokeWidth={2} />}
         />
       </View>
 
@@ -45,7 +45,7 @@ export function ProductHero({ product, onClose, onShare }: Props) {
         <CircleButton
           size={HERO_BTN}
           onPress={onShare}
-          icon={<Share2 color={colors.navIcon} size={HERO_ICON} strokeWidth={2} />}
+          icon={<Share2 color={colors.ink.primary} size={HERO_ICON} strokeWidth={2} />}
         />
       </View>
 

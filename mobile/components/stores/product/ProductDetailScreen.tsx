@@ -335,7 +335,7 @@ export function ProductDetailScreen({
   }, [validate, addToCart, onAddToCart, product, quantity, addonSelections, notes]);
 
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-page">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-page">
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScreenContainer>

@@ -1,7 +1,6 @@
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
 import { BottomSheet } from './BottomSheet';
-import { colors } from '../lib/colors';
 
 type Props = {
   visible: boolean;
@@ -40,7 +39,7 @@ export function ConfirmSheet({
   icon: Icon,
   loading,
 }: Props) {
-  const tint = destructive ? '#DC2626' : '#eb592e';
+  const tint = destructive ? '#DC2626' : '#003BC0';
   const tintBg = destructive ? '#FEE2E2' : '#E0F2FE';
 
   return (
@@ -72,7 +71,7 @@ export function ConfirmSheet({
             className="h-12 items-center justify-center rounded-2xl"
           >
             {loading ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color="#ffffff" />
             ) : (
               <Text className="text-base font-semibold text-white">
                 {confirmLabel}

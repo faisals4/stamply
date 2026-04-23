@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, type FormEvent, type ChangeEvent } from 'react'
 import { FullPageLoader } from '@/components/ui/spinner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -12,6 +12,8 @@ import {
   Smartphone as DeviceIcon,
   ShieldCheck,
   ShieldAlert,
+  Upload,
+  FileCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -73,6 +75,9 @@ function AppleWalletForm({
   flash: (ok: boolean, text: string) => void
   qc: ReturnType<typeof useQueryClient>
 }) {
+  const [certFileName, setCertFileName] = useState<string | null>(null)
+  const [keyFileName, setKeyFileName] = useState<string | null>(null)
+
   const [form, setForm] = useState({
     pass_type_id: apple.pass_type_id,
     team_id: apple.team_id,
@@ -193,11 +198,7 @@ function AppleWalletForm({
           <h2 className="font-semibold">Apple Wallet — شهادات توقيع البطاقات</h2>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
             تحتاج Apple Developer Program ($99/سنة) لإنشاء Pass Type ID
-            وتصدير شهادة التوقيع. بعد ذلك تحوّلها إلى PEM عبر{' '}
-            <code className="bg-muted px-1 rounded font-mono" dir="ltr">
-              openssl pkcs12 -in pass.p12 -out pass.pem -nodes
-            </code>
-            .
+            وتصدير شهادة التوقيع. حمّل ملف الشهادة <code className="bg-muted px-1 rounded font-mono" dir="ltr">.pem</code> مباشرة — يدعم الملفات التي تحتوي الشهادة والمفتاح معاً.
           </p>
         </div>
       </div>
@@ -425,49 +426,59 @@ function AppleWalletForm({
           />
         </div>
 
-        <div>
-          <Label htmlFor="apple-cert" className="text-xs text-muted-foreground">
-            Pass Signing Certificate (PEM)
-            {apple.has_cert && (
-              <span className="text-[10px] text-emerald-600 ms-2">✓ محفوظة</span>
-            )}
-          </Label>
-          <Textarea
-            id="apple-cert"
-            value={form.cert_pem}
-            onChange={(e) => setForm({ ...form, cert_pem: e.target.value })}
-            dir="ltr"
-            rows={5}
-            className="mt-1 font-mono text-[10px]"
-            placeholder={
-              apple.has_cert
-                ? '(محفوظة — اتركها فارغة للاحتفاظ بها)'
-                : '-----BEGIN CERTIFICATE-----\nMIIFw...\n-----END CERTIFICATE-----'
+        <CertFileUpload
+          label="شهادة Apple Wallet (.pem)"
+          hint="ملف PEM يحتوي على الشهادة والمفتاح الخاص معاً، أو الشهادة فقط"
+          accept=".pem,.p12,.cer"
+          hasSaved={apple.has_cert}
+          fileName={certFileName}
+          onFile={(text, name) => {
+            setCertFileName(name)
+            // Check if file contains both cert + key
+            const hasCert = text.includes('BEGIN CERTIFICATE')
+            const hasKey = text.includes('BEGIN PRIVATE KEY') || text.includes('BEGIN RSA PRIVATE KEY') || text.includes('BEGIN ENCRYPTED PRIVATE KEY')
+            if (hasCert && hasKey) {
+              // Combined file — auto-fill both fields
+              setForm((f) => ({ ...f, cert_pem: text, key_pem: text }))
+            } else if (hasCert) {
+              setForm((f) => ({ ...f, cert_pem: text }))
+            } else if (hasKey) {
+              setForm((f) => ({ ...f, key_pem: text }))
+            } else {
+              setForm((f) => ({ ...f, cert_pem: text }))
             }
-          />
-        </div>
+          }}
+          onClear={() => {
+            setCertFileName(null)
+            setForm((f) => ({ ...f, cert_pem: '', key_pem: '' }))
+          }}
+        />
 
-        <div>
-          <Label htmlFor="apple-key" className="text-xs text-muted-foreground">
-            Private Key (PEM)
-            {apple.has_key && (
-              <span className="text-[10px] text-emerald-600 ms-2">✓ محفوظ</span>
-            )}
-          </Label>
-          <Textarea
-            id="apple-key"
-            value={form.key_pem}
-            onChange={(e) => setForm({ ...form, key_pem: e.target.value })}
-            dir="ltr"
-            rows={5}
-            className="mt-1 font-mono text-[10px]"
-            placeholder={
-              apple.has_key
-                ? '(محفوظ — اتركه فارغاً للاحتفاظ به)'
-                : '-----BEGIN PRIVATE KEY-----\nMIIEvQ...\n-----END PRIVATE KEY-----'
-            }
+        {/* Show separate key upload only if cert file didn't include the key */}
+        {!form.key_pem && (
+          <CertFileUpload
+            label="المفتاح الخاص (.pem / .key)"
+            hint="مطلوب فقط إذا الملف أعلاه يحتوي الشهادة فقط بدون المفتاح"
+            accept=".pem,.key,.p8"
+            hasSaved={apple.has_key}
+            fileName={keyFileName}
+            onFile={(text, name) => {
+              setKeyFileName(name)
+              setForm((f) => ({ ...f, key_pem: text }))
+            }}
+            onClear={() => {
+              setKeyFileName(null)
+              setForm((f) => ({ ...f, key_pem: '' }))
+            }}
           />
-        </div>
+        )}
+
+        {form.key_pem && (
+          <div className="flex items-center gap-2 text-xs text-emerald-600">
+            <FileCheck className="w-4 h-4" />
+            <span>المفتاح الخاص محمّل {form.cert_pem === form.key_pem ? '(من نفس الملف)' : ''}</span>
+          </div>
+        )}
 
         <div>
           <Label htmlFor="apple-key-pw" className="text-xs text-muted-foreground">
@@ -548,5 +559,83 @@ function AppleWalletForm({
         </Button>
       </form>
     </section>
+  )
+}
+
+function CertFileUpload({
+  label,
+  hint,
+  accept,
+  hasSaved,
+  fileName,
+  onFile,
+  onClear,
+}: {
+  label: string
+  hint: string
+  accept: string
+  hasSaved: boolean
+  fileName: string | null
+  onFile: (text: string, name: string) => void
+  onClear: () => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      onFile(reader.result as string, file.name)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  return (
+    <div>
+      <Label className="text-xs text-muted-foreground">
+        {label}
+        {hasSaved && !fileName && (
+          <span className="text-[10px] text-emerald-600 ms-2">✓ محفوظة</span>
+        )}
+      </Label>
+      <p className="text-[11px] text-muted-foreground mb-2">{hint}</p>
+
+      <input
+        ref={ref}
+        type="file"
+        accept={accept}
+        onChange={handleChange}
+        className="sr-only"
+      />
+
+      {fileName ? (
+        <div className="flex items-center gap-3 rounded-lg border bg-emerald-50 border-emerald-200 p-3">
+          <FileCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-emerald-800 truncate" dir="ltr">{fileName}</div>
+            <div className="text-[11px] text-emerald-600">تم تحميل الملف بنجاح</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-xs text-emerald-700 hover:text-red-600 transition"
+          >
+            إزالة
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => ref.current?.click()}
+          className="w-full rounded-lg border-2 border-dashed border-gray-300 hover:border-violet-400 bg-gray-50 hover:bg-violet-50 p-6 text-center transition cursor-pointer"
+        >
+          <Upload className="w-6 h-6 mx-auto text-gray-400 mb-2" />
+          <div className="text-sm text-gray-600">اضغط لرفع الملف</div>
+          <div className="text-[11px] text-gray-400 mt-1" dir="ltr">{accept}</div>
+        </button>
+      )}
+    </div>
   )
 }

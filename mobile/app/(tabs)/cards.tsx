@@ -4,15 +4,20 @@ import {
   Text,
   ScrollView,
   RefreshControl,
+  ActivityIndicator,
   Pressable,
   GestureResponderEvent,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Store as StoreIcon, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Store as StoreIcon, ChevronLeft, ChevronRight, User as UserIcon } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { api, CardFull, Tenant } from '../../lib/api';
+import { getItem, setItem } from '../../lib/storage';
+import { Avatar } from '../../components/Avatar';
+import { ProfileEditSheet } from '../../components/ProfileEditSheet';
 import { CardVisual } from '../../components/cards/CardVisual';
 import { CardDetailsSheet } from '../../components/cards/CardDetailsSheet';
 import { ScreenContainer } from '../../components/ScreenContainer';
@@ -21,7 +26,6 @@ import { colors } from '../../lib/colors';
 import { queryKeys } from '../../lib/queryKeys';
 import { LoadingState } from '../../components/LoadingState';
 import { EmptyState } from '../../components/EmptyState';
-import { HeroBannerSlider } from '../../components/home/HeroBannerSlider';
 
 /**
  * Cards screen — Apple Wallet-style stack of every loyalty card the
@@ -100,7 +104,7 @@ export default function CardsScreen() {
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: queryKeys.cards(),
     queryFn: async () => (await api.cards()).data,
-    refetchInterval: 5000, // live updates mirror the web /i/{serial} page
+    staleTime: 30_000, // don't refetch for 30s after a successful load
   });
   // Cards list fix note: the query above returns only active,
   // non-expired, non-deleted cards — the filter lives on the backend
@@ -110,6 +114,45 @@ export default function CardsScreen() {
   // Flatten {tenant: [cards]} groups into a single sequence. Apple
   // Wallet doesn't group by issuer, so neither do we — each card
   // already shows its own brand logo + title inside the CardVisual.
+  const { data: me } = useQuery({
+    queryKey: queryKeys.me(),
+    queryFn: async () => (await api.me()).data,
+  });
+  const firstName = me?.first_name || '';
+
+  // Profile completion reminder — shows every 60 min if incomplete
+  const REMINDER_KEY = 'stamply.profile_reminder_last';
+  const [showReminder, setShowReminder] = useState(false);
+
+  useEffect(() => {
+    if (!me) return;
+    const isComplete = !!(me.first_name && me.last_name && me.email && me.birthdate && me.gender);
+    if (isComplete) {
+      setShowReminder(false);
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    getItem(REMINDER_KEY).then((last) => {
+      if (cancelled) return;
+      const now = Date.now();
+      if (!last || now - Number(last) > 60 * 60 * 1000) {
+        timer = setTimeout(() => {
+          if (!cancelled) setShowReminder(true);
+        }, 30_000);
+      }
+    });
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [me]);
+
+  const dismissReminder = async () => {
+    setShowReminder(false);
+    await setItem(REMINDER_KEY, String(Date.now()));
+  };
+
   const flatCards: FlatCard[] = (data ?? []).flatMap((group) =>
     group.cards.map((card) => ({ card, tenant: group.tenant })),
   );
@@ -150,79 +193,50 @@ export default function CardsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-page">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <ScreenContainer>
-        <PageHeader title={t('cards.title')} />
-
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
-              tintColor={colors.brand.DEFAULT}
-            />
-          }
-        >
-          <HeroBannerSlider />
-
-            {/* Loyalty stores CTA block */}
-            <Pressable
-              onPress={() => router.push('/(tabs)/loyalty-stores' as any)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#ffffff',
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: '#e5e7eb',
-                padding: 16,
-                marginBottom: 12,
-                gap: 12,
-              }}
-            >
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  backgroundColor: '#f3f0ff',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <StoreIcon color="#8B52F6" size={22} strokeWidth={1.5} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#1f2937' }}>
-                  {t('cards.loyalty_stores_title')}
-                </Text>
-                <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
-                  {t('cards.loyalty_stores_subtitle')}
-                </Text>
-              </View>
-              {i18n.dir() === 'rtl'
-                ? <ChevronLeft color="#d1d5db" size={20} />
-                : <ChevronRight color="#d1d5db" size={20} />
-              }
-            </Pressable>
-
-            {isLoading ? (
-              <LoadingState />
-            ) : flatCards.length === 0 ? (
-              <EmptyState
-                title={t('cards.empty_title')}
-                subtitle={t('cards.empty_subtitle')}
-              />
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <Image source={require('../../assets/logo-o.png')} style={{ height: 28, width: 90 }} resizeMode="contain" />
+          <Pressable onPress={() => router.push('/(tabs)/settings' as any)} className="flex-row items-center" style={{ gap: 8 }}>
+            <Text style={{ fontSize: 13, color: '#6B7280' }}>
+              {firstName ? t('cards.greeting', { name: firstName }) : t('cards.greeting_no_name')}
+            </Text>
+            {me?.email ? (
+              <Avatar name={firstName} email={me.email} size={36} />
             ) : (
-              <CardStack
-                cards={flatCards}
-                expandedIndex={expandedIndex}
-                onCardPress={handleCardPress}
-              />
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+                <UserIcon color={colors.ink.tertiary} size={18} strokeWidth={1.5} />
+              </View>
             )}
+          </Pressable>
+        </View>
+
+        {isLoading ? (
+          <LoadingState />
+        ) : flatCards.length === 0 ? (
+          <EmptyState
+            title={t('cards.empty_title')}
+            subtitle={t('cards.empty_subtitle')}
+          />
+        ) : (
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefetching}
+                onRefresh={refetch}
+                tintColor={colors.brand.DEFAULT}
+              />
+            }
+          >
+            <CardStack
+              cards={flatCards}
+              expandedIndex={expandedIndex}
+              onCardPress={handleCardPress}
+            />
           </ScrollView>
+        )}
       </ScreenContainer>
 
       <CardDetailsSheet
@@ -230,7 +244,23 @@ export default function CardsScreen() {
         tenant={selected?.tenant ?? null}
         visible={selected !== null}
         onClose={() => setSelected(null)}
+        archiveLoading={archiveMutation.isPending}
+        onArchiveToggle={
+          selected
+            ? () => archiveMutation.mutate(selected.card.serial)
+            : undefined
+        }
       />
+
+      {/* Profile completion reminder — opens the full edit sheet */}
+      {me && (
+        <ProfileEditSheet
+          visible={showReminder}
+          onClose={dismissReminder}
+          me={me}
+          mode="reminder"
+        />
+      )}
     </SafeAreaView>
   );
 }

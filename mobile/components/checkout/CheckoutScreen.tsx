@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
@@ -391,6 +391,8 @@ export function CheckoutScreen() {
 }
 
 function EmptyGuard() {
-  router.replace('/(tabs)/stores');
+  useEffect(() => {
+    router.replace('/(tabs)/stores');
+  }, []);
   return null;
 }

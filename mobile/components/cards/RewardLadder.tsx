@@ -1,4 +1,14 @@
-import { View, Text } from 'react-native';
+          <Text
+            className={
+              r.achieved
+                ? 'text-xs font-semibold text-emerald-600'
+                : 'text-xs text-gray-500'
+            }
+          >
+            {r.achieved
+              ? t('card_detail.reward_ready_chip')
+              : t('card_detail.reward_stamps_count', { count: r.stamps_required })}
+          </Text>import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { surfaces } from '../../lib/surfaces';
 

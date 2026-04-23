@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, Pressable, Image, ActivityIndicator, Alert, Platform,
 } from 'react-native';
@@ -20,6 +20,7 @@ import { CardVisual } from '../../components/cards/CardVisual';
 import { CardDetailsSheet } from '../../components/cards/CardDetailsSheet';
 import { BranchMapBlock } from '../../components/stores/BranchMapBlock';
 import { FavoriteButton } from '../../components/ui/FavoriteButton';
+import { useUserLocation } from '../../lib/useUserLocation';
 
 /** Haversine distance in km. */
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -38,16 +39,8 @@ export default function StoreDetailScreen() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  // User location
-  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(() => {
-    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('stamply.user.location');
-        return saved ? JSON.parse(saved) : null;
-      } catch { return null; }
-    }
-    return null;
-  });
+  // User location (works on both web and native)
+  const { loc: userLoc } = useUserLocation();
 
   // Customer profile for subscribe
   const { data: profile } = useQuery({
@@ -106,8 +99,14 @@ export default function StoreDetailScreen() {
         email: profile.email,
         birthdate: profile.birthdate,
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tenantCards(tenantId) });
+      // Await both invalidations so the caller's loading state stays ON
+      // until the refetched data arrives and `template.subscribed` flips
+      // to true. Without await, the spinner disappears before the card
+      // list updates, briefly showing the old "Subscribe" button.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.cards() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.tenantCards(tenantId) }),
+      ]);
     } catch (e: any) {
       Alert.alert(t('errors.unknown'), e.message ?? '');
     }
@@ -115,6 +114,27 @@ export default function StoreDetailScreen() {
 
   // Card detail sheet
   const [sheetCard, setSheetCard] = useState<{ card: CardFull; tenant: Tenant | null } | null>(null);
+
+  // Selected branch — shared between map and branch cards
+  const [selectedBranch, setSelectedBranch] = useState<TenantLocation | null>(null);
+
+  // Auto-select nearest branch when data loads
+  const allLocations = tenantData?.locations ?? [];
+  useEffect(() => {
+    if (allLocations.length === 0 || selectedBranch) return;
+    const mappable = allLocations.filter((l) => l.lat && l.lng);
+    if (mappable.length === 0) return;
+    if (userLoc) {
+      const nearest = mappable.reduce((best, loc) => {
+        const d = haversineKm(userLoc.lat, userLoc.lng, loc.lat!, loc.lng!);
+        const bestD = haversineKm(userLoc.lat, userLoc.lng, best.lat!, best.lng!);
+        return d < bestD ? loc : best;
+      }, mappable[0]);
+      setSelectedBranch(nearest);
+    } else {
+      setSelectedBranch(mappable[0]);
+    }
+  }, [allLocations.length, userLoc?.lat]);
 
   const tenantName = tenantData?.tenant?.name ?? '';
 
@@ -147,8 +167,19 @@ export default function StoreDetailScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* Map + Branches */}
-            <BranchMapBlock locations={tenantData?.locations ?? []} />
-            <BranchesSection locations={tenantData?.locations ?? []} userLoc={userLoc} />
+            <BranchMapBlock
+              locations={allLocations}
+              userLoc={userLoc}
+              selectedId={selectedBranch?.id ?? null}
+              onSelect={(loc) => setSelectedBranch(loc)}
+              logoUrl={tenantData?.tenant?.logo_url ?? null}
+            />
+            <BranchesSection
+              locations={allLocations}
+              userLoc={userLoc}
+              selectedId={selectedBranch?.id ?? null}
+              onSelect={(loc) => setSelectedBranch(loc)}
+            />
 
             {/* Cards */}
             <Text className="mb-3 mt-5 text-sm font-bold text-gray-900">
@@ -263,9 +294,22 @@ function TenantCardItem({
 
 /* ─── Branches section ─── */
 
-function BranchesSection({ locations, userLoc }: { locations: TenantLocation[]; userLoc: { lat: number; lng: number } | null }) {
-  const { t } = useTranslation();
+function BranchesSection({ locations, userLoc, selectedId, onSelect }: {
+  locations: TenantLocation[];
+  userLoc: { lat: number; lng: number } | null;
+  selectedId: number | null;
+  onSelect: (loc: TenantLocation) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const scrollRef = useRef<ScrollView>(null);
+  const cardRefs = useRef<Record<number, any>>({});
+  const [containerWidth, setContainerWidth] = useState(0);
+
   if (locations.length === 0) return null;
+
+  const CARD_WIDTH = 220;
+  const GAP = 10;
+  const isRTL = i18n.dir() === 'rtl';
 
   const sorted = [...locations].map((loc) => {
     const dist = userLoc && loc.lat && loc.lng
@@ -274,20 +318,73 @@ function BranchesSection({ locations, userLoc }: { locations: TenantLocation[]; 
     return { ...loc, _dist: dist };
   }).sort((a, b) => (a._dist ?? Infinity) - (b._dist ?? Infinity));
 
+  // Auto-scroll to center the selected branch card.
+  useEffect(() => {
+    if (!selectedId) return;
+    const idx = sorted.findIndex((l) => l.id === selectedId);
+    if (idx < 0) return;
+
+    // Web: use native DOM scrollIntoView — handles RTL perfectly
+    if (Platform.OS === 'web') {
+      const node = cardRefs.current[selectedId];
+      // React Native Web exposes the underlying DOM node
+      const el = node && typeof node.scrollIntoView === 'function'
+        ? node
+        : node?._nativeTag ?? node?.getNode?.() ?? null;
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+      return;
+    }
+
+    // Native: calculate offset manually
+    if (!scrollRef.current) return;
+    const totalContent = sorted.length * CARD_WIDTH + (sorted.length - 1) * GAP;
+    const cardCenter = idx * (CARD_WIDTH + GAP) + CARD_WIDTH / 2;
+    const halfContainer = containerWidth > 0 ? containerWidth / 2 : (CARD_WIDTH + GAP);
+    const maxScroll = Math.max(0, totalContent - (containerWidth || CARD_WIDTH * 2));
+    const ltrOffset = Math.max(0, Math.min(cardCenter - halfContainer, maxScroll));
+    const offset = isRTL ? maxScroll - ltrOffset : ltrOffset;
+    scrollRef.current.scrollTo({ x: offset, animated: true });
+  }, [selectedId, containerWidth]);
+
   return (
-    <View>
+    <View onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
       <Text className="mb-3 text-sm font-bold text-gray-900">{t('cards.branches_title')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-        {sorted.map((loc) => (
-          <View key={loc.id} className={`${surfaces.card} p-3`} style={[shadows.card, { width: 200 }]}>
-            <View className="flex-row items-center" style={{ gap: 6 }}>
-              <MapPin color={colors.brand.DEFAULT} size={14} strokeWidth={2} />
-              <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>{loc.name}</Text>
-            </View>
-            {loc.address ? <Text className="mt-1 text-xs text-gray-500" numberOfLines={2}>{loc.address}</Text> : null}
-            {loc._dist != null ? <Text className="mt-1 text-3xs text-gray-400">{loc._dist.toFixed(1)} {t('cards.km')}</Text> : null}
-          </View>
-        ))}
+      <ScrollView ref={scrollRef} horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ gap: GAP, paddingHorizontal: 16 }}>
+        {sorted.map((loc) => {
+          const isSelected = loc.id === selectedId;
+          return (
+            <Pressable
+              key={loc.id}
+              ref={(r: any) => {
+                if (r) {
+                  // On web, get the underlying DOM element
+                  cardRefs.current[loc.id] = Platform.OS === 'web'
+                    ? (r as any)?.getNode?.() ?? r
+                    : r;
+                }
+              }}
+              onPress={() => onSelect(loc)}
+              className={`${surfaces.card} p-3`}
+              style={[
+                shadows.card,
+                {
+                  width: CARD_WIDTH,
+                  borderWidth: 2,
+                  borderColor: isSelected ? colors.brand.DEFAULT : 'transparent',
+                },
+              ]}
+            >
+              <View className="flex-row items-center" style={{ gap: 6 }}>
+                <MapPin color={isSelected ? colors.brand.DEFAULT : '#9ca3af'} size={14} strokeWidth={2} />
+                <Text className={`text-sm font-bold ${isSelected ? 'text-brand' : 'text-gray-900'}`} numberOfLines={1}>{loc.name}</Text>
+              </View>
+              {loc.address ? <Text className="mt-1 text-xs text-gray-500" numberOfLines={2}>{loc.address}</Text> : null}
+              {loc._dist != null ? <Text className="mt-1 text-3xs text-gray-400">{loc._dist.toFixed(1)} {t('cards.km')}</Text> : null}
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </View>
   );

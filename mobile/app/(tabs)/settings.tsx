@@ -15,23 +15,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
-import { LogOut, Globe, BadgeCheck, ShoppingBag, Store, Heart } from 'lucide-react-native';
-import { SettingsRow } from '../../components/SettingsRow';
+import { LogOut, Globe, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { clearAuth } from '../../lib/auth';
+import { unregisterPushToken } from '../../lib/push';
 import { setStoredLocale, getStoredLocale, AppLocale } from '../../lib/i18n';
 import { useIsRTL } from '../../lib/rtl';
 import { useDrillChevron } from '../../lib/useDrillChevron';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { useMerchantAuth } from '../../business/lib/merchant-auth';
-import { ProfileEditSheet } from '../../components/ProfileEditSheet';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { PageHeader } from '../../components/PageHeader';
-import { Avatar } from '../../components/Avatar';
 import { surfaces } from '../../lib/surfaces';
-import { colors } from '../../lib/colors';
 import { queryKeys } from '../../lib/queryKeys';
 
 /**
@@ -66,12 +63,9 @@ export default function SettingsScreen() {
     const wantRTL = next === 'ar';
 
     if (Platform.OS === 'web') {
-      // Web: flip <html dir> live — no reload needed.
-      if (typeof document !== 'undefined') {
-        document.documentElement.dir = wantRTL ? 'rtl' : 'ltr';
-        document.documentElement.lang = next;
+      if (typeof window !== 'undefined') {
+        window.location.reload();
       }
-      setCurrentLocale(next);
       return;
     }
 
@@ -117,6 +111,14 @@ export default function SettingsScreen() {
       } catch {
         /* ignore */
       }
+      // Remove the FCM token from the backend + delete it locally
+      // so the next account that logs in on this device gets a
+      // fresh token.
+      try {
+        await unregisterPushToken();
+      } catch {
+        /* ignore */
+      }
       await clearAuth();
       queryClient.clear();
       setLogoutSheetOpen(false);
@@ -130,106 +132,70 @@ export default function SettingsScreen() {
   const version = (Constants.expoConfig?.version as string) ?? '0.1.0';
 
   return (
-    <SafeAreaView className="flex-1 bg-page">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <ScreenContainer>
         <PageHeader title={t('settings.title')} />
 
         <ScrollView className="flex-1">
-        {/* Profile card — avatar (Gravatar by email, initials fallback)
-            on the inline-start, name + verified badge + phone + cards
-            count stacked on the inline-end. Mirrors the merchant
-            dashboard avatar pattern (web/src/components/ui/avatar-img.tsx)
-            so both products share one visual identity. */}
-        {/* Profile card — tapping opens the edit profile sheet.
-            The drill chevron at inline-end signals interactivity. */}
-        {isLoading ? (
-          <View className={`mx-4 mt-4 items-center justify-center ${surfaces.card} p-4`}>
-            <ActivityIndicator color={colors.brand.DEFAULT} />
-          </View>
-        ) : !me ? (
-          /* Not logged in — show login prompt */
-          <Pressable
-            onPress={() => router.push('/(auth)/login' as any)}
-            className={`mx-4 mt-4 flex-row items-center justify-between ${surfaces.card} p-4`}
-          >
-            <View className="flex-1" style={{ gap: 4 }}>
-              <Text className="text-base font-bold text-gray-900">
-                {t('settings.login_prompt_title')}
-              </Text>
-              <Text className="text-xs text-gray-400">
-                {t('settings.login_prompt_subtitle')}
-              </Text>
-            </View>
-            <DrillIcon color={colors.ink.tertiary} size={18} strokeWidth={0.9} />
-          </Pressable>
-        ) : (
-          /* Logged in — show profile */
-          <Pressable
-            onPress={() => setEditSheetOpen(true)}
-            className={`mx-4 mt-4 flex-row items-center justify-between ${surfaces.card} p-4`}
-          >
-            <View className="flex-1 flex-row items-center" style={{ gap: 12 }}>
-              <Avatar name={fullName} email={me?.email ?? null} size={56} />
-              <View className="flex-1">
-                <View className="flex-row items-center" style={{ gap: 8 }}>
-                  <Text className="text-lg font-bold text-gray-900">{fullName}</Text>
-                  {me?.phone_verified_at ? (
-                    <BadgeCheck
-                      color={colors.brand.DEFAULT}
-                      size={18}
-                      strokeWidth={2}
-                    />
-                  ) : null}
-                </View>
-                <Text
-                  className="mt-1 text-start text-sm text-gray-500"
-                  style={{ writingDirection: isRTL ? 'rtl' : 'ltr' }}
-                >
-                  {me?.phone ? `\u2066${me.phone}\u2069` : ''}
+        {/* Profile card */}
+        <View className={`mx-4 mt-4 ${surfaces.card} p-4`}>
+          {isLoading ? (
+            <ActivityIndicator color="#003BC0" />
+          ) : (
+            <>
+              <Text className="text-lg font-bold text-gray-900">{fullName}</Text>
+              <Text className="mt-1 text-sm text-gray-500">{me?.phone}</Text>
+              {me?.tenants_count ? (
+                <Text className="mt-2 text-xs text-gray-400">
+                  {me.tenants_count} {t('cards.title')}
                 </Text>
-              </View>
-            </View>
-            <DrillIcon color={colors.ink.tertiary} size={18} strokeWidth={0.9} />
-          </Pressable>
-        )}
+              ) : null}
+            </>
+          )}
+        </View>
 
-        <SettingsRow
-          icon={ShoppingBag}
-          label={t('settings.orders')}
-          onPress={() => router.push('/orders' as any)}
-        />
-        <SettingsRow
-          icon={Heart}
-          label={t('settings.favorites')}
-          onPress={() => router.push('/favorites' as any)}
-        />
-        <SettingsRow
-          icon={Store}
-          label={t('settings.for_business')}
-          subtitle={
-            isLoggedIn
-              ? merchantUser?.tenant_name
-                ? `${t('settings.manage_store')} (${merchantUser.tenant_name})`
-                : t('settings.manage_store')
-              : t('settings.for_business_subtitle')
-          }
-          subtitleColor={isLoggedIn ? colors.brand.DEFAULT : undefined}
+        {/* For Business */}
+        <Pressable
           onPress={() => router.push('/for-business' as any)}
-        />
-        <SettingsRow
-          icon={Globe}
-          label={t('settings.language')}
-          value={currentLocale === 'ar' ? t('settings.ar') : t('settings.en')}
+          className={`mx-4 mt-4 flex-row items-center justify-between ${surfaces.card} p-4`}
+        >
+          <View className="flex-row items-center">
+            <Store color={colors.brand.DEFAULT} size={20} strokeWidth={0.9} />
+            <Text className="ms-3 text-base text-gray-900">
+              {t('settings.for_business')}
+            </Text>
+          </View>
+          <DrillIcon color={colors.ink.tertiary} size={18} strokeWidth={0.9} />
+        </Pressable>
+
+        {/* Language */}
+        <Pressable
           onPress={toggleLanguage}
-        />
-        <SettingsRow
-          icon={LogOut}
-          label={t('settings.logout')}
-          destructive
-          hideChevron
+          className={`mx-4 mt-4 flex-row items-center justify-between ${surfaces.card} p-4`}
+        >
+          <View className="flex-row items-center">
+            <Globe color="#6B7280" size={20} strokeWidth={0.9} />
+            <Text className="ms-3 text-base text-gray-900">{t('settings.language')}</Text>
+          </View>
+          <View className="flex-row items-center">
+            <Text className="me-2 text-sm text-gray-500">
+              {currentLocale === 'ar' ? t('settings.ar') : t('settings.en')}
+            </Text>
+            <DrillIcon color="#9CA3AF" size={18} strokeWidth={0.9} />
+          </View>
+        </Pressable>
+
+        {/* Logout */}
+        <Pressable
           onPress={() => setLogoutSheetOpen(true)}
           disabled={loggingOut}
-        />
+          className={`mx-4 mt-4 flex-row items-center ${surfaces.card} p-4`}
+        >
+          <LogOut color="#EF4444" size={20} strokeWidth={0.9} />
+          <Text className="ms-3 text-base font-semibold text-red-500">
+            {t('settings.logout')}
+          </Text>
+        </Pressable>
 
         <Text className="mt-6 text-center text-xs text-gray-400">
           {t('settings.version', { version })}

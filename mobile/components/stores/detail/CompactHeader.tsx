@@ -32,11 +32,11 @@ export function CompactHeader({ store, onBack }: Props) {
       endAction={
         <View className="flex-row" style={{ gap: 6 }}>
           <CircleButton
-            icon={<Search color={colors.navIcon} size={COMPACT_ICON} strokeWidth={2} />}
+            icon={<Search color={colors.ink.primary} size={COMPACT_ICON} strokeWidth={2} />}
           />
           <FavoriteButton size={36} iconSize={COMPACT_ICON} />
           <CircleButton
-            icon={<Share2 color={colors.navIcon} size={COMPACT_ICON} strokeWidth={2} />}
+            icon={<Share2 color={colors.ink.primary} size={COMPACT_ICON} strokeWidth={2} />}
           />
         </View>
       }

@@ -6,31 +6,29 @@ import { api, ApiError } from '../../lib/api';
 import { PhoneInput } from '../../components/auth/PhoneInput';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { AuthScreen } from '../../components/auth/AuthScreen';
+import { useLocaleDirStyle } from '../../lib/useLocaleDirStyle';
+import { defaultCountry, sanitizePhone, type Country } from '../../lib/countries';
 
 /**
- * Phone entry screen. Collects a 9-digit Saudi mobile number,
- * prepends +966, and calls POST /api/app/auth/otp/request. On
- * success, pushes to /verify with the full phone as a route param.
- *
- * Errors are rendered inline below the button (not via `Alert.alert`)
- * because on React Native Web the native alert bridge is unreliable:
- * depending on the browser and the iframe context it can silently
- * drop the alert, which left users staring at a spinning button with
- * no visible feedback.
+ * Phone entry screen. Collects a mobile number with country selector,
+ * and calls POST /api/app/auth/otp/request. On success, pushes to
+ * /verify with the full phone as a route param.
  */
 export default function LoginScreen() {
   const { t } = useTranslation();
+  const localeDirStyle = useLocaleDirStyle();
   const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState<Country>(defaultCountry);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = phone.length === 9 && !loading;
+  const canSubmit = phone.length === country.maxLength && !loading;
 
   const submit = async () => {
     if (!canSubmit) return;
     setError(null);
     setLoading(true);
-    const fullPhone = '+966' + phone;
+    const fullPhone = country.dialCode + phone;
     try {
       await api.otpRequest(fullPhone);
       router.push({ pathname: '/(auth)/verify', params: { phone: fullPhone } });
@@ -53,10 +51,6 @@ export default function LoginScreen() {
   return (
     <AuthScreen>
       <View className="mb-6 items-center">
-        {/* Illustration first, Stamply wordmark second — the
-            promotional artwork (a character / scene) acts as
-            the emotional hook, and the brand wordmark sits
-            underneath as a signature. */}
         <Image
           // eslint-disable-next-line @typescript-eslint/no-require-imports
           source={require('../../assets/346.png')}
@@ -72,22 +66,19 @@ export default function LoginScreen() {
         />
       </View>
 
-      <Text className="mb-2 text-3xl font-bold text-gray-900">{t('login.title')}</Text>
-      {/* Subtitle in regular weight (not bold) so it reads as
-          body copy underneath the "حياك" heading. */}
-      <Text className="mb-8 text-base font-normal leading-6 text-gray-500">
+      <Text style={localeDirStyle} className="mb-2 text-3xl font-bold text-gray-900">{t('login.title')}</Text>
+      <Text style={localeDirStyle} className="mb-8 text-base font-normal leading-6 text-gray-500">
         {t('login.subtitle')}
       </Text>
 
-      {/* Form label above the phone field. Regular weight by
-          request — this is a short prompt, not a heading. */}
-      <Text className="mb-2 text-sm font-normal text-gray-700">
+      <Text style={localeDirStyle} className="mb-2 text-sm font-normal text-gray-700">
         {t('login.phone_label')}
       </Text>
       <PhoneInput
         value={phone}
-        onChange={setPhone}
-        placeholder={t('login.phone_placeholder')}
+        onChange={(v) => setPhone(sanitizePhone(v, country))}
+        country={country}
+        onCountryChange={(c) => { setCountry(c); setPhone(''); }}
       />
 
       <View className="mt-6">

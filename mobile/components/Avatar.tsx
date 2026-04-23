@@ -88,7 +88,7 @@ export function Avatar({ name, email, size = 36, className = '' }: Props) {
   return (
     <View
       accessibilityLabel={name ?? undefined}
-      className={`items-center justify-center overflow-hidden rounded-full bg-brand-50 ${className}`}
+      className={`items-center justify-center overflow-hidden rounded-full bg-gray-100 ${className}`}
       style={{ width: size, height: size }}
     >
       {showImage ? (
@@ -99,7 +99,7 @@ export function Avatar({ name, email, size = 36, className = '' }: Props) {
         />
       ) : (
         <Text
-          className="font-bold text-brand"
+          className="font-bold text-gray-500"
           style={{ fontSize, lineHeight: fontSize * 1.1 }}
         >
           {initials}

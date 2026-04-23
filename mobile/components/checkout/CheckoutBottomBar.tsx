@@ -34,7 +34,7 @@ export function CheckoutBottomBar({ total, loading = false, onConfirm }: Props) 
         {
           paddingTop: 12,
           paddingBottom: 20,
-          backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.90)' : colors.page,
+          backgroundColor: Platform.OS === 'web' ? 'rgba(248, 243, 241, 0.85)' : colors.page,
         },
         Platform.OS === 'web'
           ? ({

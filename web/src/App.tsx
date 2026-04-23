@@ -23,6 +23,13 @@ import OpSettingsFeaturesPage from '@/pages/op/settings/OpSettingsFeatures'
 import OpSettingsOtpSmsPage from '@/pages/op/settings/OpSettingsOtpSms'
 import OpSettingsAppIconPage from '@/pages/op/settings/OpSettingsAppIcon'
 import OpAppSettingsPage from '@/pages/op/OpAppSettings'
+import OpNotificationsPage from '@/pages/op/OpNotifications'
+import OpNotificationSendPage from '@/pages/op/OpNotificationSend'
+import OpNotificationDetailPage from '@/pages/op/OpNotificationDetail'
+import OpDocumentationPage from '@/pages/op/OpDocumentation'
+import OpReportsPage from '@/pages/op/OpReports'
+import OpOtpSmsLogsPage from '@/pages/op/reports/OpOtpSmsLogs'
+import HelpPages from '@/pages/help'
 import OpBannerManagementPage from '@/pages/op/OpBannerManagement'
 import OpSubscriptionsPage from '@/pages/op/OpSubscriptions'
 import OpSubscriptionDetailPage from '@/pages/op/OpSubscriptionDetail'
@@ -209,6 +216,9 @@ function TenantRoutes() {
           <RequirePerm permission="settings.templates"><PushTemplateEditorPage /></RequirePerm>
         </Route>
 
+        <Route path="/help/:slug" component={HelpPages} />
+        <Route path="/help" component={HelpPages} />
+
         <Route>
           <Redirect to="/admin" />
         </Route>
@@ -255,6 +265,12 @@ function OpRoutes() {
         <Route path="/op/app-settings/banners" component={OpBannerManagementPage} />
         <Route path="/op/app-settings/otp-sms" component={OpSettingsOtpSmsPage} />
         <Route path="/op/app-settings/app-icon" component={OpSettingsAppIconPage} />
+        <Route path="/op/notifications" component={OpNotificationsPage} />
+        <Route path="/op/notifications/send" component={OpNotificationSendPage} />
+        <Route path="/op/notifications/:id" component={OpNotificationDetailPage} />
+        <Route path="/op/reports" component={OpReportsPage} />
+        <Route path="/op/reports/otp-sms-logs" component={OpOtpSmsLogsPage} />
+        <Route path="/op/docs" component={OpDocumentationPage} />
         <Route path="/op/settings" component={OpSettingsPage} />
         <Route path="/op/settings/vapid" component={OpSettingsVapidPage} />
         <Route path="/op/settings/apns" component={OpSettingsApnsPage} />

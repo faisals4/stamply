@@ -1,15 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../../lib/api';
 import { setAuth } from '../../lib/auth';
+import { registerPushToken, getPermissionStatus } from '../../lib/push';
+import { removeItem } from '../../lib/storage';
 import { onlyDigits } from '../../lib/digits';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { AuthScreen } from '../../components/auth/AuthScreen';
-import { CircleButton } from '../../components/ui/CircleButton';
-import { useIsRTL } from '../../lib/rtl';
+import { ScreenContainer } from '../../components/ScreenContainer';
+import { LanguageToggle } from '../../components/LanguageToggle';
 
 const CODE_LENGTH = 4;
 const RESEND_AFTER_SECONDS = 30;
@@ -22,6 +30,7 @@ const RESEND_AFTER_SECONDS = 30;
 export default function VerifyScreen() {
   const { t } = useTranslation();
   const isRTL = useIsRTL();
+  const localeDirStyle = useLocaleDirStyle();
   const params = useLocalSearchParams<{ phone: string }>();
   const phone = params.phone ?? '';
 
@@ -59,7 +68,30 @@ export default function VerifyScreen() {
     try {
       const res = await api.otpVerify(phone, value);
       await setAuth(res.data.token, res.data.customer);
-      router.replace('/(tabs)/cards');
+      // Clear profile reminder so it shows immediately after login
+      await removeItem('stamply.profile_reminder_last');
+
+      // Decide the post-login destination:
+      //
+      //   - 'undetermined' (never asked for notification permission)
+      //     → show the in-app primer screen first, so the user
+      //     understands the value before iOS shows its one-shot
+      //     OS dialog.
+      //   - 'granted' → user already opted in on a previous install /
+      //     session; refresh the FCM token in the background and
+      //     head straight to the home tab.
+      //   - 'denied' / 'unsupported' → no point prompting again
+      //     (denied = system blocks us, unsupported = Expo Go / web)
+      //     → skip the primer.
+      const status = await getPermissionStatus();
+      if (status === 'granted') {
+        registerPushToken().catch(() => { /* noop */ });
+      }
+      if (status === 'undetermined') {
+        router.replace('/enable-notifications');
+      } else {
+        router.replace('/(tabs)/cards');
+      }
     } catch (e) {
       const err = e as ApiError;
       const message =
@@ -105,8 +137,8 @@ export default function VerifyScreen() {
         />
       }
     >
-      <Text className="mb-2 text-3xl font-bold text-gray-900">{t('verify.title')}</Text>
-          <Text className="mb-10 text-base leading-6 text-gray-500">
+      <Text style={localeDirStyle} className="mb-2 text-3xl font-bold text-gray-900">{t('verify.title')}</Text>
+          <Text style={localeDirStyle} className="mb-10 text-base leading-6 text-gray-500">
             {/*
              * Wrap the phone number in Unicode LRI/PDI marks so the
              * BiDi algorithm treats it as an isolated left-to-right

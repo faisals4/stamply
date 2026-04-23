@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { View, Text, TextInput, type TextInputProps } from 'react-native';
 import { useLocaleDirStyle } from '../../lib/useLocaleDirStyle';
 import { colors } from '../../lib/colors';
@@ -19,6 +20,14 @@ type Props = {
   fullWidth?: boolean;
   secureTextEntry?: boolean;
   autoCapitalize?: TextInputProps['autoCapitalize'];
+  /** Override border color (e.g. for validation errors). */
+  borderColor?: string;
+  /** Email mode: strips spaces and non-ASCII characters, forces LTR. */
+  emailMode?: boolean;
+  /** Keyboard return key type. */
+  returnKeyType?: TextInputProps['returnKeyType'];
+  /** Called when the return key is pressed. */
+  onSubmitEditing?: TextInputProps['onSubmitEditing'];
 };
 
 /**
@@ -35,7 +44,7 @@ type Props = {
  * - No blue focus outline on web (`outlineWidth: 0`)
  * - Uses `colors.ink.border` token (not hardcoded hex)
  */
-export function FormInput({
+export const FormInput = forwardRef<TextInput, Props>(function FormInput({
   label,
   value,
   onChangeText,
@@ -48,8 +57,18 @@ export function FormInput({
   fullWidth,
   secureTextEntry,
   autoCapitalize,
-}: Props) {
+  borderColor: borderColorOverride,
+  emailMode,
+  returnKeyType,
+  onSubmitEditing,
+}, ref) {
   const localeDirStyle = useLocaleDirStyle();
+  const forceLtr = ltr || emailMode;
+
+  // Email mode: strip spaces + non-ASCII (Arabic, emoji, etc.)
+  const handleChange = emailMode
+    ? (v: string) => onChangeText?.(v.replace(/[^a-zA-Z0-9@._+\-]/g, ''))
+    : onChangeText;
 
   return (
     <View style={fullWidth ? { gap: 4 } : { flex: 1, gap: 4 }}>
@@ -59,11 +78,12 @@ export function FormInput({
         </Text>
       ) : null}
       <TextInput
+        ref={ref}
         style={[
-          ltr ? { direction: 'ltr' as const, textAlign: 'left' as const } : localeDirStyle,
+          forceLtr ? { direction: 'ltr' as const, textAlign: 'left' as const } : localeDirStyle,
           {
             borderWidth: 1,
-            borderColor: locked ? colors.ink.softBorder : colors.ink.border,
+            borderColor: borderColorOverride ?? (locked ? colors.ink.softBorder : colors.ink.border),
             borderRadius: 12,
             paddingHorizontal: 12,
             paddingVertical: multiline ? 10 : 0,
@@ -76,7 +96,7 @@ export function FormInput({
           } as any,
         ]}
         value={value}
-        onChangeText={locked ? undefined : onChangeText}
+        onChangeText={locked ? undefined : handleChange}
         editable={!locked}
         placeholder={placeholder}
         placeholderTextColor={colors.ink.tertiary}
@@ -85,7 +105,10 @@ export function FormInput({
         multiline={multiline}
         secureTextEntry={secureTextEntry}
         autoCapitalize={autoCapitalize}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        blurOnSubmit={returnKeyType === 'next' ? false : true}
       />
     </View>
   );
-}
+});

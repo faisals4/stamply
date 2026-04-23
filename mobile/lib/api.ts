@@ -280,6 +280,59 @@ export const api = {
     );
   },
 
+  /** Cards the customer has hidden from the home screen. */
+  archivedCards() {
+    return request<{ data: { tenant: Tenant | null; cards: CardFull[] }[] }>(
+      '/app/cards/archived',
+    );
+  },
+
+  /** Hide a card from the home screen (archive). */
+  archiveCard(serial: string) {
+    return request<{ message: string }>(
+      `/app/cards/${encodeURIComponent(serial)}/archive`,
+      { method: 'POST' },
+    );
+  },
+
+  /** Restore a previously archived card back to the home screen. */
+  unarchiveCard(serial: string) {
+    return request<{ message: string }>(
+      `/app/cards/${encodeURIComponent(serial)}/unarchive`,
+      { method: 'POST' },
+    );
+  },
+
+  /**
+   * Register (or refresh) this device's FCM push token with the backend
+   * so CardNotificationDispatcher / BroadcastNotifier can reach it.
+   *
+   * Called on every cold start from lib/push.ts after we have a fresh
+   * token from messaging().getToken() — FCM may rotate the token at
+   * any time, so the backend expects us to re-send on each launch.
+   */
+  registerDevice(input: {
+    token: string;
+    platform: 'ios' | 'android';
+    device_info?: Record<string, unknown>;
+  }) {
+    return request<{ data: { id: number; platform: string; registered_at: string } }>(
+      `/app/devices`,
+      { method: 'POST', body: input },
+    );
+  },
+
+  /**
+   * Unregister this device's token on explicit logout so the user
+   * stops receiving notifications.
+   */
+  unregisterDevice(token: string) {
+    return request<{ data: { ok: boolean } }>(`/app/devices`, {
+      method: 'DELETE',
+      body: { token },
+    });
+  },
+
   /**
    * Paginated activity timeline (stamps + redemptions) for a single
    * card. Used by the details sheet's "show more" flow.

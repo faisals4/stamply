@@ -96,7 +96,10 @@ function resolveApiUrl(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     return `${window.location.origin}/api`;
   }
-  return '/api';
+  // Native: use the same configured API URL as the customer app
+  const Constants = require('expo-constants').default;
+  const fromConfig = (Constants.expoConfig?.extra as any)?.apiUrl;
+  return fromConfig || 'https://stamply.ngrok.app/api';
 }
 
 async function merchantFetch<T>(
@@ -235,6 +238,7 @@ export const merchantApi = {
 
 type MerchantAuthContextValue = {
   user: MerchantUser | null;
+  token: string | null;
   isLoggedIn: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -253,6 +257,7 @@ export function MerchantAuthProvider({ children }: { children: ReactNode }) {
       const res = await merchantApi.login(email, password);
       await setStoredToken(res.token, res.user);
       setUser(res.user);
+      setTokenState(res.token);
     } finally {
       setIsLoading(false);
     }
@@ -261,17 +266,19 @@ export function MerchantAuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await clearStoredToken();
     setUser(null);
+    setTokenState(null);
   }, []);
 
   const value = useMemo<MerchantAuthContextValue>(
     () => ({
       user,
+      token,
       isLoggedIn: user !== null,
       isLoading,
       login,
       logout,
     }),
-    [user, isLoading, login, logout]
+    [user, token, isLoading, login, logout]
   );
 
   return (

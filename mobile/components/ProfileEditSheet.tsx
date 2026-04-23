@@ -1,5 +1,5 @@
-import { createElement, useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Platform } from 'react-native';
+import { createElement, useEffect, useState, useRef, forwardRef } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView, Platform, Animated } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BottomSheet } from './BottomSheet';
@@ -8,11 +8,14 @@ import { FormInput } from './ui/FormInput';
 import { api, CustomerPayload, Gender, ApiError } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { colors } from '../lib/colors';
+import { useLocaleDirStyle } from '../lib/useLocaleDirStyle';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   me: CustomerPayload & { tenants_count: number };
+  /** 'edit' = normal edit (settings), 'reminder' = completion prompt (cards) */
+  mode?: 'edit' | 'reminder';
 };
 
 type FormState = {
@@ -48,18 +51,39 @@ function toForm(me: CustomerPayload): FormState {
  * and will 422 with a proper message if something is off; we just
  * surface that text in the inline error area at the top of the body.
  */
-export function ProfileEditSheet({ visible, onClose, me }: Props) {
+export function ProfileEditSheet({ visible, onClose, me, mode = 'edit' }: Props) {
   const { t } = useTranslation();
+  const localeDirStyle = useLocaleDirStyle();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(() => toForm(me));
   const [error, setError] = useState<string | null>(null);
+  const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  // Input refs for tab/next navigation
+  const firstNameRef = useRef<TextInput>(null);
+  const lastNameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const birthdateRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) {
       setForm(toForm(me));
       setError(null);
+      setInvalidFields(new Set());
     }
   }, [visible, me]);
+
+  const triggerShake = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: Platform.OS !== 'web' }),
+    ]).start();
+  };
 
   const mutation = useMutation({
     mutationFn: async (patch: FormState) => {
@@ -94,17 +118,35 @@ export function ProfileEditSheet({ visible, onClose, me }: Props) {
 
   const save = () => {
     setError(null);
+    // Validate required fields (all except birthdate)
+    const missing = new Set<string>();
+    if (!form.first_name.trim()) missing.add('first_name');
+    if (!form.last_name.trim()) missing.add('last_name');
+    if (!form.email.trim()) missing.add('email');
+    if (!form.gender) missing.add('gender');
+
+    if (missing.size > 0) {
+      setInvalidFields(missing);
+      triggerShake();
+      return;
+    }
+    setInvalidFields(new Set());
     mutation.mutate(form);
   };
 
   return (
     <BottomSheet visible={visible} onClose={onClose} align="top">
-      <View style={{ flex: 1 }}>
-        {/* Header — title only */}
-        <View className="items-center border-b border-gray-100 px-5 pb-3 pt-2">
-          <Text className="text-base text-gray-900">
-            {t('settings.edit_profile')}
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        {/* Header */}
+        <View className="items-center border-b border-gray-100 px-5 pb-3 pt-2" style={{ gap: 4 }}>
+          <Text style={localeDirStyle} className="text-base font-bold text-gray-900">
+            {mode === 'reminder' ? t('profile.reminder_title') : t('settings.edit_profile')}
           </Text>
+          {mode === 'reminder' && (
+            <Text style={localeDirStyle} className="text-center text-xs text-gray-500">
+              {t('profile.reminder_subtitle')}
+            </Text>
+          )}
         </View>
 
         {/* Body */}
@@ -115,72 +157,85 @@ export function ProfileEditSheet({ visible, onClose, me }: Props) {
         >
           {error ? (
             <View className="mb-4 rounded-xl bg-red-50 px-4 py-3">
-              <Text className="text-sm text-red-600">{error}</Text>
+              <Text style={localeDirStyle} className="text-sm text-red-600">{error}</Text>
             </View>
           ) : null}
 
-          {/* First + Last name share one row so the two halves of the
-              customer's name line up naturally instead of stacking. */}
-          <View className="flex-row" style={{ gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <FieldLabel label={t('profile.first_name')} />
-              <Input
-                value={form.first_name}
-                onChange={(v) => setForm((s) => ({ ...s, first_name: v }))}
-                placeholder={t('profile.first_name_placeholder')}
+          <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+            <View className="flex-row" style={{ gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <FieldLabel label={t('profile.first_name')} dirStyle={localeDirStyle} invalid={invalidFields.has('first_name')} />
+                <Input
+                  ref={firstNameRef}
+                  value={form.first_name}
+                  onChange={(v) => { setForm((s) => ({ ...s, first_name: v })); setInvalidFields((p) => { const n = new Set(p); n.delete('first_name'); return n; }); }}
+                  placeholder={t('profile.first_name_placeholder')}
+                  invalid={invalidFields.has('first_name')}
+                  returnKeyType="next"
+                  onSubmitEditing={() => lastNameRef.current?.focus()}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <FieldLabel label={t('profile.last_name')} dirStyle={localeDirStyle} invalid={invalidFields.has('last_name')} />
+                <Input
+                  ref={lastNameRef}
+                  value={form.last_name}
+                  onChange={(v) => { setForm((s) => ({ ...s, last_name: v })); setInvalidFields((p) => { const n = new Set(p); n.delete('last_name'); return n; }); }}
+                  placeholder={t('profile.last_name_placeholder')}
+                  invalid={invalidFields.has('last_name')}
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                />
+              </View>
+            </View>
+
+            <FieldLabel label={t('profile.email')} className="mt-4" dirStyle={localeDirStyle} invalid={invalidFields.has('email')} />
+            <Input
+              ref={emailRef}
+              value={form.email}
+              onChange={(v) => { setForm((s) => ({ ...s, email: v })); setInvalidFields((p) => { const n = new Set(p); n.delete('email'); return n; }); }}
+              placeholder={t('profile.email_placeholder')}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              invalid={invalidFields.has('email')}
+              emailMode
+              returnKeyType="next"
+              onSubmitEditing={() => birthdateRef.current?.focus()}
+            />
+
+            <FieldLabel label={t('profile.birthdate')} className="mt-4" dirStyle={localeDirStyle} />
+            <DateInput
+              ref={birthdateRef}
+              value={form.birthdate}
+              onChange={(v) => setForm((s) => ({ ...s, birthdate: v }))}
+            />
+            <Text style={localeDirStyle} className="mt-1 text-xs text-gray-400">
+              {t('profile.birthdate_hint')}
+            </Text>
+
+            <FieldLabel label={t('profile.gender')} className="mt-4" dirStyle={localeDirStyle} invalid={invalidFields.has('gender')} />
+            <View className="flex-row" style={{ gap: 12 }}>
+              <GenderChip
+                label={t('profile.gender_male')}
+                active={form.gender === 'male'}
+                invalid={invalidFields.has('gender')}
+                onPress={() => { setForm((s) => ({ ...s, gender: 'male' })); setInvalidFields((p) => { const n = new Set(p); n.delete('gender'); return n; }); }}
+              />
+              <GenderChip
+                label={t('profile.gender_female')}
+                active={form.gender === 'female'}
+                invalid={invalidFields.has('gender')}
+                onPress={() => { setForm((s) => ({ ...s, gender: 'female' })); setInvalidFields((p) => { const n = new Set(p); n.delete('gender'); return n; }); }}
               />
             </View>
-            <View style={{ flex: 1 }}>
-              <FieldLabel label={t('profile.last_name')} />
-              <Input
-                value={form.last_name}
-                onChange={(v) => setForm((s) => ({ ...s, last_name: v }))}
-                placeholder={t('profile.last_name_placeholder')}
-              />
-            </View>
-          </View>
-
-          {/* Email */}
-          <FieldLabel label={t('profile.email')} className="mt-4" />
-          <Input
-            value={form.email}
-            onChange={(v) => setForm((s) => ({ ...s, email: v }))}
-            placeholder={t('profile.email_placeholder')}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          {/* Birthdate */}
-          <FieldLabel label={t('profile.birthdate')} className="mt-4" />
-          <DateInput
-            value={form.birthdate}
-            onChange={(v) => setForm((s) => ({ ...s, birthdate: v }))}
-          />
-          <Text className="mt-1 text-xs text-gray-400">
-            {t('profile.birthdate_hint')}
-          </Text>
-
-          {/* Gender */}
-          <FieldLabel label={t('profile.gender')} className="mt-4" />
-          <View className="flex-row" style={{ gap: 12 }}>
-            <GenderChip
-              label={t('profile.gender_male')}
-              active={form.gender === 'male'}
-              onPress={() => setForm((s) => ({ ...s, gender: 'male' }))}
-            />
-            <GenderChip
-              label={t('profile.gender_female')}
-              active={form.gender === 'female'}
-              onPress={() => setForm((s) => ({ ...s, gender: 'female' }))}
-            />
-          </View>
+          </Animated.View>
         </ScrollView>
 
         {/* Footer — Cancel + Save pinned at the bottom of the sheet.
             Not part of the ScrollView so they're always reachable
             regardless of how tall the form grows. */}
         <View
-          className="flex-row border-t border-gray-100 px-5 py-4"
+          className="flex-row border-t border-gray-100 px-5 pt-3 pb-6"
           style={{ gap: 12 }}
         >
           <View style={{ flex: 1 }}>
@@ -209,21 +264,28 @@ export function ProfileEditSheet({ visible, onClose, me }: Props) {
 function FieldLabel({
   label,
   className = '',
+  dirStyle,
+  invalid,
 }: {
   label: string;
   className?: string;
+  dirStyle?: { writingDirection: 'rtl' | 'ltr' };
+  invalid?: boolean;
 }) {
   return (
-    <Text className={`mb-2 text-sm text-gray-700 ${className}`}>{label}</Text>
+    <Text style={[dirStyle, invalid && { color: '#dc2626' }]} className={`mb-2 text-sm ${invalid ? '' : 'text-gray-700'} ${className}`}>{label}{invalid ? ' *' : ''}</Text>
   );
 }
 
-function Input({ value, onChange, placeholder, keyboardType, autoCapitalize }: {
+const Input = forwardRef<TextInput, {
   value: string; onChange: (v: string) => void; placeholder?: string;
   keyboardType?: 'default' | 'email-address'; autoCapitalize?: 'none' | 'sentences' | 'words';
-}) {
-  return <FormInput value={value} onChangeText={onChange} placeholder={placeholder} keyboardType={keyboardType} autoCapitalize={autoCapitalize} fullWidth />;
-}
+  invalid?: boolean; emailMode?: boolean;
+  returnKeyType?: 'done' | 'next' | 'go';
+  onSubmitEditing?: () => void;
+}>(({ value, onChange, placeholder, keyboardType, autoCapitalize, invalid, emailMode, returnKeyType, onSubmitEditing }, ref) => {
+  return <FormInput ref={ref} value={value} onChangeText={onChange} placeholder={placeholder} keyboardType={keyboardType} autoCapitalize={autoCapitalize} fullWidth borderColor={invalid ? '#dc2626' : undefined} emailMode={emailMode} returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} />;
+});
 
 /**
  * Birthdate input. On web we render a real `<input type="date">` via
@@ -233,13 +295,10 @@ function Input({ value, onChange, placeholder, keyboardType, autoCapitalize }: {
  * native we fall back to a masked text input; integrating
  * `@react-native-community/datetimepicker` is a follow-up.
  */
-function DateInput({
-  value,
-  onChange,
-}: {
+const DateInput = forwardRef<TextInput, {
   value: string;
   onChange: (v: string) => void;
-}) {
+}>(function DateInput({ value, onChange }, ref) {
   if (Platform.OS === 'web') {
     return createElement('input', {
       type: 'date',
@@ -265,7 +324,7 @@ function DateInput({
         // default baseline (content glued to the top edge) and the
         // "15 May 1990" text drifts to the top of the field, out of
         // alignment with the neighbouring <TextInput> fields.
-        lineHeight: '52px',
+        lineHeight: '50px',
         borderRadius: 14,
         borderWidth: 1,
         borderColor: colors.ink.divider,
@@ -286,12 +345,14 @@ function DateInput({
 
   return (
     <TextInput
+      ref={ref}
       value={value}
       onChangeText={onChange}
-      placeholder="1990-05-15"
+      placeholder="YYYY-MM-DD"
       placeholderTextColor={colors.ink.tertiary}
       keyboardType="numbers-and-punctuation"
       maxLength={10}
+      returnKeyType="done"
       style={{
         height: 52,
         borderRadius: 14,
@@ -304,16 +365,18 @@ function DateInput({
       }}
     />
   );
-}
+});
 
 function GenderChip({
   label,
   active,
   onPress,
+  invalid,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  invalid?: boolean;
 }) {
   return (
     <Pressable
@@ -322,8 +385,8 @@ function GenderChip({
         flex: 1,
         height: 52,
         borderRadius: 14,
-        borderWidth: 1,
-        borderColor: active ? colors.brand.DEFAULT : colors.ink.divider,
+        borderWidth: active ? 1 : invalid ? 1.5 : 1,
+        borderColor: active ? colors.brand.DEFAULT : invalid ? '#dc2626' : colors.ink.divider,
         backgroundColor: active ? colors.brand[50] : colors.white,
         alignItems: 'center',
         justifyContent: 'center',

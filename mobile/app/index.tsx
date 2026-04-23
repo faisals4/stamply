@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { isAuthenticated } from '../lib/auth';
-import { colors } from '../lib/colors';
 
 /**
  * Boot splash + auth gate. Reads the token once on mount and
@@ -18,7 +17,7 @@ export default function Index() {
 
   return (
     <View className="flex-1 items-center justify-center bg-white">
-      <ActivityIndicator size="large" color={colors.brand.DEFAULT} />
+      <ActivityIndicator size="large" color="#003BC0" />
     </View>
   );
 }

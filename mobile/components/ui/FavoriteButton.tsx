@@ -4,12 +4,11 @@ import { Heart } from 'lucide-react-native';
 import { colors } from '../../lib/colors';
 
 type Props = {
+  /** Outer diameter in px. Defaults to 36 (compact header size).
+   *  Store hero uses 40 for larger touch targets on a photo. */
   size?: number;
+  /** Icon size for the heart glyph. Defaults to 18. */
   iconSize?: number;
-  /** Controlled mode: pass true/false to control the heart state externally. */
-  isFavorite?: boolean;
-  /** Called when the user taps the heart. Use for API calls. */
-  onToggle?: (newState: boolean) => void;
 };
 
 /**
@@ -17,26 +16,27 @@ type Props = {
  * spring pop), tap again to unlike (gray outline with a soft
  * scale-back).
  *
- * Supports both controlled (`isFavorite` + `onToggle`) and
- * uncontrolled (local state) modes.
+ * Visual style is identical to `CircleButton`: same warm cream
+ * background (`#fcefe9`), same border-less pill shape, same
+ * `colors.navIcon` for the idle icon color. The only difference
+ * is the animation + the red filled state on like.
+ *
+ * No `variant` prop — both `CircleButton` and `FavoriteButton`
+ * now share a single look (the "warm cream pill") since the user
+ * unified the styles. If a transparent hero-overlay variant is
+ * needed in the future, add it to BOTH components at the same
+ * time so they stay in sync.
  */
 export function FavoriteButton({
   size = 36,
   iconSize = 18,
-  isFavorite,
-  onToggle,
 }: Props) {
-  const [localLiked, setLocalLiked] = useState(false);
-  const liked = isFavorite ?? localLiked;
+  const [liked, setLiked] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const toggle = () => {
     const willLike = !liked;
-    if (onToggle) {
-      onToggle(willLike);
-    } else {
-      setLocalLiked(willLike);
-    }
+    setLiked(willLike);
 
     if (willLike) {
       scaleAnim.setValue(0.2);
@@ -76,7 +76,7 @@ export function FavoriteButton({
       style={{
         width: size,
         height: size,
-        backgroundColor: '#F0F0F0',
+        backgroundColor: '#fcefe9',
       }}
     >
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>

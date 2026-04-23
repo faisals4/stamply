@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, Pressable, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
@@ -39,10 +39,15 @@ export function MerchantScannerScreen() {
   const [card, setCard] = useState<CashierCard | null>(null);
   const [isLooking, setIsLooking] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timer on unmount
+  useEffect(() => () => { if (successTimer.current) clearTimeout(successTimer.current); }, []);
 
   const showSuccess = (msg: string) => {
+    if (successTimer.current) clearTimeout(successTimer.current);
     setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(''), 3000);
+    successTimer.current = setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const handleLookup = async () => {

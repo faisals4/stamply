@@ -102,7 +102,7 @@ export function CartSummary({
                     placeholder={t('cart.coupon_placeholder') as string}
                     placeholderTextColor={colors.ink.tertiary}
                     editable={!couponLoading}
-                    className="flex-1 rounded-2xl bg-white px-3 text-sm text-gray-900"
+                    className="flex-1 rounded-2xl bg-gray-100 px-3 text-sm text-gray-900"
                     style={[
                       localeDirStyle,
                       // `minWidth: 0` is required on react-native-web so

@@ -172,6 +172,7 @@ export function MerchantCustomerDetailScreen() {
               locked={isLocked('email')}
               onChangeText={(v) => setForm((p) => ({ ...p, email: v }))}
               keyboardType="email-address"
+              emailMode
             />
             <View className="flex-row" style={{ gap: 10 }}>
               <ProfileField

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
@@ -45,6 +45,8 @@ const FREE_DELIVERY_THRESHOLD = 150;
 export function CartScreen() {
   const { t } = useTranslation();
   const { cart, addToCart, removeFromCart, removeLine, clearCart } = useCart();
+  const couponTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (couponTimer.current) clearTimeout(couponTimer.current); }, []);
 
   // ─── Product pool ──────────────────────────────────────────
   // Flatten every product from every menu section across every
@@ -126,7 +128,8 @@ export function CartScreen() {
       setCouponSuccess('');
       // Fake validation with a short delay so the spinner is
       // visible. A future backend call replaces this setTimeout.
-      setTimeout(() => {
+      if (couponTimer.current) clearTimeout(couponTimer.current);
+      couponTimer.current = setTimeout(() => {
         if (trimmed === 'STAMPLY10' || trimmed === 'TEST') {
           setAppliedCoupon({
             code: trimmed,
@@ -192,7 +195,7 @@ export function CartScreen() {
   const discountAmount = appliedCoupon ? totalPrice * 0.1 : 0;
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-page">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-gray-50">
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScreenContainer>

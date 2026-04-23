@@ -79,6 +79,8 @@ export default function FavoritesScreen() {
           <EmptyState
             title={t('favorites.empty_title')}
             subtitle={t('favorites.empty_subtitle')}
+            actionLabel={t('favorites.browse_stores')}
+            onAction={() => router.push('/(tabs)/loyalty-stores')}
           />
         ) : (
           <ScrollView
@@ -99,7 +101,7 @@ export default function FavoritesScreen() {
                 style={{ opacity: getAnim(store.id), transform: [{ scale: getAnim(store.id) }] }}
               >
               <Pressable
-                onPress={() => router.push(`/loyalty-stores?tenantId=${store.id}` as any)}
+                onPress={() => router.push(`/store-detail/${store.id}` as any)}
                 className={`flex-row items-center ${surfaces.card} p-3`}
                 style={[shadows.card, { gap: 12 }]}
               >

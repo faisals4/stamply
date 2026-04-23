@@ -20,6 +20,7 @@ import {
   UserCog,
   BarChart3,
   Settings,
+
   Mail,
   MessageSquare,
   Bell,
@@ -66,6 +67,7 @@ export function MerchantDashboardScreen() {
   const localeDirStyle = useLocaleDirStyle();
   const { user, logout } = useMerchantAuth();
   const { menuButton, drawer } = useMerchantDrawer('dashboard');
+
 
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ['merchant', 'dashboard-stats'],
@@ -379,4 +381,5 @@ function WeeklyRow({ label, value }: { label: string; value: number }) {
     </View>
   );
 }
+
 

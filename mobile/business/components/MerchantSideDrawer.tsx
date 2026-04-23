@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Animated, Modal, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, Animated, Modal, Platform, Image } from 'react-native';
 import { router } from 'expo-router';
 import {
   LogOut, Menu, ChevronLeft, ChevronRight,
@@ -7,7 +7,7 @@ import {
   Smartphone, Zap, MapPin, UserCog, BarChart3, Settings, Crown,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { useIsRTL } from '../../lib/rtl';
+import { useIsRTL, useLayoutRTL } from '../../lib/rtl';
 import { useLocaleDirStyle } from '../../lib/useLocaleDirStyle';
 import { colors } from '../../lib/colors';
 import { CircleButton } from '../../components/ui/CircleButton';

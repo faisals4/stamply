@@ -33,7 +33,7 @@ export function CartBottomBar({ onAddMore, onCheckout }: Props) {
           paddingTop: 12,
           paddingBottom: 20,
           gap: 10,
-          backgroundColor: Platform.OS === 'web' ? 'rgba(255, 255, 255, 0.90)' : colors.page,
+          backgroundColor: Platform.OS === 'web' ? 'rgba(248, 243, 241, 0.85)' : colors.page,
         },
         Platform.OS === 'web'
           ? ({

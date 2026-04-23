@@ -36,7 +36,7 @@ export default function OffersScreen() {
               <OfferCard
                 key={offer.id}
                 offer={offer}
-                onPress={() => router.push(`/stores/${offer.storeId}`)}
+                onPress={() => router.push(`/shop/${offer.storeId}`)}
               />
             ))}
           </ScrollView>

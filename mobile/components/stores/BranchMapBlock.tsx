@@ -1,37 +1,60 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, Text, Pressable, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import { MapPin, Navigation } from 'lucide-react-native';
+import { NativeMapView } from './NativeMapView';
 import { useTranslation } from 'react-i18next';
 import { useLocaleDirStyle } from '../../lib/useLocaleDirStyle';
 import { colors } from '../../lib/colors';
 import { surfaces } from '../../lib/surfaces';
 import type { TenantLocation } from '../../lib/api';
 
+/** Haversine distance in km. */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+type Props = {
+  locations: TenantLocation[];
+  userLoc?: { lat: number; lng: number } | null;
+  selectedId?: number | null;
+  onSelect?: (loc: TenantLocation) => void;
+  /** Store logo URL — shown on all branch markers. */
+  logoUrl?: string | null;
+};
+
 /**
- * Interactive OpenStreetMap (Leaflet) showing branch markers.
- * Tapping a marker selects the branch and shows an info block
- * below with name, address, and a "Directions" button.
+ * Interactive map showing branch markers.
+ * Auto-selects the nearest branch to the user and centers the map on it.
  *
- * Web: renders an iframe with Leaflet CDN + markers.
- * Native: falls back to a static list (same as BranchesSection).
+ * Web: Leaflet iframe with custom markers.
+ * Native: Apple Maps via NativeMapView with user location dot.
  */
-export function BranchMapBlock({ locations }: { locations: TenantLocation[] }) {
+export function BranchMapBlock({ locations, userLoc, selectedId, onSelect, logoUrl }: Props) {
   const { t } = useTranslation();
   const localeDirStyle = useLocaleDirStyle();
-  const [selected, setSelected] = useState<TenantLocation | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Filter locations that have coordinates
   const mappable = locations.filter((l) => l.lat && l.lng);
 
-  // Listen for marker clicks from the iframe
+  // Resolve selected from external ID
+  const selected = selectedId != null ? mappable.find((l) => l.id === selectedId) ?? null : null;
+  const handleSelect = (loc: TenantLocation) => { if (onSelect) onSelect(loc); };
+
+  // Listen for marker clicks from the iframe (web)
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'branch-select') {
         const loc = mappable.find((l) => l.id === e.data.id);
-        if (loc) setSelected(loc);
+        if (loc) handleSelect(loc);
       }
     };
     window.addEventListener('message', handler);
@@ -40,11 +63,12 @@ export function BranchMapBlock({ locations }: { locations: TenantLocation[] }) {
 
   if (mappable.length === 0) return null;
 
-  // Memoize center + Leaflet HTML to avoid rebuilding on every render
-  const { centerLat, centerLng, leafletHtml } = useMemo(() => {
-    const cLat = mappable.reduce((s, l) => s + l.lat!, 0) / mappable.length;
-    const cLng = mappable.reduce((s, l) => s + l.lng!, 0) / mappable.length;
-    const html = `
+  // Center on selected branch, or center of all branches
+  const centerLat = selected?.lat ?? mappable.reduce((s, l) => s + l.lat!, 0) / mappable.length;
+  const centerLng = selected?.lng ?? mappable.reduce((s, l) => s + l.lng!, 0) / mappable.length;
+
+  // Build Leaflet HTML for the iframe (web)
+  const leafletHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -69,33 +93,39 @@ export function BranchMapBlock({ locations }: { locations: TenantLocation[] }) {
       border-color: ${colors.brand.DEFAULT};
     }
     .branch-icon svg { pointer-events: none; }
+    .my-loc{position:relative;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+    .my-dot{width:12px;height:12px;background:#4285F4;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);z-index:2;position:relative}
+    .my-pulse{position:absolute;top:50%;left:50%;width:34px;height:34px;margin-left:-17px;margin-top:-17px;background:rgba(66,133,244,.3);border-radius:50%;z-index:1;animation:p 2s cubic-bezier(0,0,.2,1) infinite}
+    @keyframes p{0%{transform:scale(0.3);opacity:.8}50%{opacity:.4}100%{transform:scale(1.2);opacity:0}}
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script>
     var map = L.map('map', { zoomControl: false, attributionControl: false })
-      .setView([${centerLat}, ${centerLng}], ${mappable.length === 1 ? 15 : 12});
+      .setView([${centerLat}, ${centerLng}], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    ${userLoc ? `L.marker([${userLoc.lat},${userLoc.lng}],{icon:L.divIcon({html:'<div class="my-loc"><div class="my-pulse"></div><div class="my-dot"></div></div>',className:'',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);` : ''}
 
     var markers = [];
     var branches = ${JSON.stringify(mappable.map((l) => ({ id: l.id, lat: l.lat, lng: l.lng, name: l.name })))};
+    var nearestId = ${selectedId ?? 'null'};
 
     branches.forEach(function(b) {
+      var isNearest = b.id === nearestId;
       var icon = L.divIcon({
-        html: '<div class="branch-icon" id="icon-' + b.id + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${colors.brand.DEFAULT}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>',
+        html: '<div class="branch-icon' + (isNearest ? ' active' : '') + '" id="icon-' + b.id + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' + (isNearest ? 'white' : '${colors.brand.DEFAULT}') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>',
         className: '',
         iconSize: [36, 36],
         iconAnchor: [18, 36],
       });
       var m = L.marker([b.lat, b.lng], { icon: icon }).addTo(map);
       m.on('click', function() {
-        // Reset all icons
         document.querySelectorAll('.branch-icon').forEach(function(el) {
           el.classList.remove('active');
           el.querySelector('svg').setAttribute('stroke', '${colors.brand.DEFAULT}');
         });
-        // Highlight selected
         var el = document.getElementById('icon-' + b.id);
         if (el) {
           el.classList.add('active');
@@ -106,6 +136,11 @@ export function BranchMapBlock({ locations }: { locations: TenantLocation[] }) {
       markers.push(m);
     });
 
+    // Auto-select nearest
+    if (nearestId) {
+      window.parent.postMessage({ type: 'branch-select', id: nearestId }, '*');
+    }
+
     if (markers.length > 1) {
       var group = L.featureGroup(markers);
       map.fitBounds(group.getBounds(), { padding: [30, 30] });
@@ -113,8 +148,6 @@ export function BranchMapBlock({ locations }: { locations: TenantLocation[] }) {
   <\/script>
 </body>
 </html>`;
-    return { centerLat: cLat, centerLng: cLng, leafletHtml: html };
-  }, [mappable.length]);
 
   const openDirections = () => {
     if (!selected) return;
@@ -137,7 +170,18 @@ export function BranchMapBlock({ locations }: { locations: TenantLocation[] }) {
             style={{ width: '100%', height: '100%', border: 'none' }}
           />
         </View>
-      ) : null}
+      ) : (
+        <NativeMapView
+          userLoc={userLoc}
+          markers={mappable.map((l) => ({ id: l.id, lat: l.lat!, lng: l.lng!, title: l.name, logo: logoUrl ?? null }))}
+          height={200}
+          centerOn={selected ? { lat: selected.lat!, lng: selected.lng! } : null}
+          onMarkerPress={(id) => {
+            const loc = mappable.find((l) => l.id === id);
+            if (loc) handleSelect(loc);
+          }}
+        />
+      )}
 
       {/* Selected branch info */}
       {selected && (

@@ -1,6 +1,6 @@
 import '../global.css';
 import { useEffect, useState } from 'react';
-import { I18nManager, Platform, View, ActivityIndicator } from 'react-native';
+import { I18nManager, Platform, View, ActivityIndicator, NativeModules } from 'react-native';
 import * as Updates from 'expo-updates';
 import { Stack } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -9,10 +9,6 @@ import { StatusBar } from 'expo-status-bar';
 
 import { queryClient } from '../lib/queryClient';
 import { initI18n } from '../lib/i18n';
-import { colors } from '../lib/colors';
-import { CartProvider } from '../lib/cart-context';
-import { CheckoutProvider } from '../lib/checkout-context';
-import { MerchantAuthProvider } from '../business/lib/merchant-auth';
 
 /**
  * Root layout.
@@ -38,51 +34,77 @@ export default function RootLayout() {
       const wantRTL = locale === 'ar';
 
       if (Platform.OS === 'web') {
-        // Web: flip the document's dir attribute. No reload needed.
+        // Web: set document dir for CSS/browser layout.
+        // Do NOT call I18nManager.forceRTL() on web — RN Web auto-flips
+        // flexDirection:'row' when I18nManager.isRTL is true, which
+        // double-flips with the manual 'row-reverse' in useLayoutRTL().
         if (typeof document !== 'undefined') {
           document.documentElement.dir = wantRTL ? 'rtl' : 'ltr';
           document.documentElement.lang = locale;
         }
-      } else if (I18nManager.isRTL !== wantRTL) {
-        // Native: force RN's layout direction. Requires a JS reload.
-        I18nManager.allowRTL(wantRTL);
-        I18nManager.forceRTL(wantRTL);
-        try {
-          await Updates.reloadAsync();
-        } catch {
-          /* reload unavailable — continue */
+      } else {
+        // Native: I18nManager auto-flips flexDirection and textAlign.
+        const needsFlip = I18nManager.isRTL !== wantRTL;
+        if (needsFlip) {
+          I18nManager.allowRTL(wantRTL);
+          I18nManager.forceRTL(wantRTL);
+        }
+
+        // Native: forceRTL requires a JS bundle reload to take effect.
+        if (needsFlip) {
+          try {
+            await Updates.reloadAsync();
+            return;
+          } catch {
+            try {
+              NativeModules.DevSettings?.reload?.();
+              return;
+            } catch {
+              /* no reload available — saved locale applies on next restart */
+            }
+          }
         }
       }
 
       setReady(true);
+
+      // Fire-and-forget: request notification permission, grab the
+      // FCM token, POST it to /api/app/devices, and bind the
+      // foreground / background / cold-start listeners. Safe to call
+      // here because it's a no-op on web and guards internally if
+      // the user hasn't logged in yet (re-runs after successful
+      // login from the auth flow).
+      initPushNotifications();
     })();
   }, []);
 
   if (!ready) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color={colors.brand.DEFAULT} />
+        <ActivityIndicator size="large" color="#003BC0" />
       </View>
     );
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <CheckoutProvider>
-          <MerchantAuthProvider>
-            <SafeAreaProvider>
-              <StatusBar style="auto" />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: '#ffffff' },
-                }}
-              />
-            </SafeAreaProvider>
-          </MerchantAuthProvider>
-        </CheckoutProvider>
-      </CartProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <CartProvider>
+          <CheckoutProvider>
+            <MerchantAuthProvider>
+              <SafeAreaProvider>
+                <StatusBar style="auto" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: '#ffffff' },
+                  }}
+                />
+              </SafeAreaProvider>
+            </MerchantAuthProvider>
+          </CheckoutProvider>
+        </CartProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

@@ -15,8 +15,11 @@
  * React Query docs.
  */
 export const queryKeys = {
-  /** All cards belonging to the authenticated customer. */
+  /** All cards belonging to the authenticated customer (non-archived). */
   cards: () => ['cards'] as const,
+
+  /** Cards the customer has hidden from the home screen. */
+  archivedCards: () => ['archived-cards'] as const,
 
   /** Single card payload by wallet serial. */
   card: (serial: string) => ['card', serial] as const,

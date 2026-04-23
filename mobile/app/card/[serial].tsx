@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   View,
+  Text,
   ScrollView,
   Platform,
   Pressable,
@@ -12,15 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Gift } from 'lucide-react-native';
 import { api, ApiError } from '../../lib/api';
 import { useIsRTL } from '../../lib/rtl';
-import { CardVisual } from '../../components/cards/CardVisual';
-import { RewardReadyBanner } from '../../components/cards/RewardReadyBanner';
-import { RewardLadder } from '../../components/cards/RewardLadder';
+import { CardVisual } from '../../components/CardVisual';
 import { PrimaryButton } from '../../components/PrimaryButton';
+import { surfaces } from '../../lib/surfaces';
 import { queryKeys } from '../../lib/queryKeys';
-import { colors } from '../../lib/colors';
 
 /**
  * Single-card detail screen — shows the same card visual as the web
@@ -39,7 +38,7 @@ export default function CardDetailScreen() {
     queryKey: queryKeys.card(serial!),
     queryFn: async () => (await api.cardDetail(serial!)).data,
     enabled: !!serial,
-    refetchInterval: 5000, // live updates mirror the web /i/{serial} page
+    staleTime: 15_000, // allow 15s before refetching
   });
 
   const addToWallet = async () => {
@@ -61,13 +60,13 @@ export default function CardDetailScreen() {
 
   if (isLoading || !data) {
     return (
-      <SafeAreaView className="flex-1 bg-page">
+      <SafeAreaView className="flex-1 bg-gray-50">
         <Stack.Screen options={{ headerShown: false }} />
         <Pressable onPress={() => router.back()} className="self-start px-4 py-3">
-          <BackArrow color={colors.ink.primary} size={28} />
+          <BackArrow color="#111827" size={28} />
         </Pressable>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brand.DEFAULT} />
+          <ActivityIndicator size="large" color="#003BC0" />
         </View>
       </SafeAreaView>
     );
@@ -80,16 +79,21 @@ export default function CardDetailScreen() {
   const readyToRedeem =
     requiredForNext > 0 ? Math.floor(data.card.stamps_count / requiredForNext) : 0;
 
-  const title = data.card.name ?? data.tenant?.name ?? '';
+  // Title fallback chain — mirrors web `CardVisual.tsx`:
+  //   1. design.labels.title  (per-card title override set in the editor)
+  //   2. card.name             (canonical card template name)
+  //   3. tenant.name            (brand name — last-resort fallback)
+  const designLabelTitle = (data.card.design as any)?.labels?.title;
+  const title = designLabelTitle || data.card.name || data.tenant?.name || '';
   const customerName = data.customer?.name ?? '';
   const brandLogo = data.tenant?.logo_url ?? null;
 
   return (
-    <SafeAreaView className="flex-1 bg-page">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <Stack.Screen options={{ headerShown: false }} />
 
       <Pressable onPress={() => router.back()} className="self-start px-4 py-3">
-        <BackArrow color={colors.ink.primary} size={28} />
+        <BackArrow color="#111827" size={28} />
       </Pressable>
 
       <ScrollView
@@ -106,7 +110,27 @@ export default function CardDetailScreen() {
           brandLogoUrl={brandLogo}
         />
 
-        <RewardReadyBanner count={readyToRedeem} rewardName={firstReward?.name} />
+        {/* Ready-to-redeem green banner — only when customer has at
+            least one full reward cycle available */}
+        {readyToRedeem > 0 && (
+          <View className="flex-row items-center gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
+            <View className="h-11 w-11 items-center justify-center rounded-full bg-emerald-100">
+              <Gift color="#047857" size={22} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-bold text-emerald-900">
+                {readyToRedeem === 1
+                  ? 'لديك بطاقة جاهزة للاستبدال'
+                  : readyToRedeem === 2
+                  ? 'لديك بطاقتان جاهزتان للاستبدال'
+                  : `لديك ${readyToRedeem} بطاقات جاهزة للاستبدال`}
+              </Text>
+              <Text className="mt-0.5 text-[11px] text-emerald-800/80">
+                أظهر هذه الشاشة للكاشير عند التجار لاستلام {firstReward?.name ?? 'المكافأة'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Add to Wallet */}
         <PrimaryButton
