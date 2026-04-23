@@ -3,17 +3,21 @@
 namespace App\Services\Messaging;
 
 use App\Models\Tenant;
+use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 use Twilio\Rest\Client as TwilioClient;
 
 /**
- * SMS sender. Reads provider credentials from the current tenant's
- * `settings.integrations.sms` JSON blob so merchants manage their own
- * Twilio (or future provider) creds from the Settings UI.
+ * SMS sender for tenant marketing templates. Reads provider credentials
+ * from the current tenant's `settings.integrations.sms` JSON blob so
+ * merchants manage their own Twilio creds from the Settings UI.
  *
  * Falls back to config defaults if the tenant hasn't configured anything.
  * Logs instead of sending when disabled.
+ *
+ * NOTE: OTP messages use a separate platform-level provider configured
+ * in `/op/settings/otp-sms` and handled directly by OtpService.
  */
 class SmsService
 {
@@ -68,15 +72,7 @@ class SmsService
     }
 
     /**
-     * Send an SMS via Twilio.
-     *
-     * @param  string  $to      E.164 phone number, e.g. "+966555000001"
-     * @param  string  $body    Message body. Keep under 160 chars for single-segment SMS.
-     * @param  Tenant|null  $tenant  Explicit tenant context. Required when
-     *                               sending outside an authenticated request
-     *                               (e.g. the public OTP flow) — otherwise
-     *                               `resolveTenant()` falls back to `auth()`
-     *                               and lands on the global defaults.
+     * Send an SMS via Twilio (tenant marketing templates).
      */
     public function send(string $to, string $body, ?Tenant $tenant = null): bool
     {
@@ -116,6 +112,41 @@ class SmsService
         $token = (string) ($config['auth_token'] ?? '');
 
         return new TwilioClient($sid, $token);
+    }
+
+    /**
+     * Alias used by PlatformSettingsController for Twilio OTP testing.
+     */
+    public function buildTwilioClient(array $config): TwilioClient
+    {
+        return $this->buildClient($config);
+    }
+
+    /**
+     * Send a test SMS via SMSCountry (used by PlatformSettingsController
+     * for OTP provider testing from the /op panel).
+     */
+    public function testSmsCountry(string $to, string $body, array $config): array
+    {
+        $authKey = (string) ($config['auth_key'] ?? '');
+        $authToken = (string) ($config['auth_token'] ?? '');
+        $senderId = (string) ($config['sender_id'] ?? 'Stamply');
+        $number = ltrim($to, '+');
+
+        $client = new GuzzleClient(['timeout' => 15]);
+        $url = "https://restapi.smscountry.com/v0.1/Accounts/{$authKey}/SMSes/";
+
+        $response = $client->post($url, [
+            'auth' => [$authKey, $authToken],
+            'json' => [
+                'Text' => $body,
+                'Number' => $number,
+                'SenderId' => $senderId,
+                'Tool' => 'API',
+            ],
+        ]);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
     }
 
     private function resolveTenant(): ?Tenant

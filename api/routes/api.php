@@ -149,6 +149,18 @@ Route::prefix('op')->group(function () {
         // Platform feature flags (e.g. phone verification prompt)
         Route::get('/settings/features', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'showFeatures']);
         Route::put('/settings/features', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'updateFeatures']);
+        // OTP/SMS provider configuration (platform-level, app OTP only)
+        Route::get('/settings/otp-sms', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'showOtpSms']);
+        Route::put('/settings/otp-sms/messagecentral', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'updateOtpMessageCentral']);
+        Route::put('/settings/otp-sms/unifonic', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'updateOtpUnifonic']);
+        Route::put('/settings/otp-sms/smscountry', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'updateOtpSmsCountry']);
+        Route::put('/settings/otp-sms/twilio', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'updateOtpTwilio']);
+        Route::post('/settings/otp-sms/test', [\App\Http\Controllers\Api\Op\PlatformSettingsController::class, 'testOtpSms']);
+        // OTP/SMS activity logs (read-only reporting)
+        Route::get('/settings/otp-sms/logs', [\App\Http\Controllers\Api\Op\OtpSmsLogsController::class, 'index']);
+        // Mobile app alternate icon variant (iOS bundled icons)
+        Route::get('/settings/app-icon', [\App\Http\Controllers\Api\Op\AppIconController::class, 'show']);
+        Route::put('/settings/app-icon', [\App\Http\Controllers\Api\Op\AppIconController::class, 'update']);
 
         Route::get('/tenants', [\App\Http\Controllers\Api\Op\TenantsController::class, 'index']);
         Route::post('/tenants', [\App\Http\Controllers\Api\Op\TenantsController::class, 'store']);

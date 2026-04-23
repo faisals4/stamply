@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\Op;
 
 use App\Http\Controllers\Controller;
 use App\Services\Messaging\PushService;
+use App\Services\Messaging\SmsService;
 use App\Services\PlatformSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 /**
  * SaaS-operator-only endpoints for managing platform-level credentials
@@ -22,6 +24,7 @@ class PlatformSettingsController extends Controller
     public function __construct(
         private readonly PlatformSettingsService $settings,
         private readonly PushService $push,
+        private readonly SmsService $sms,
     ) {}
 
     /**
@@ -452,5 +455,380 @@ class PlatformSettingsController extends Controller
         }
 
         return $this->showFeatures();
+    }
+
+    /* ──────────────────────────────────────────────────────────── */
+    /*  OTP SMS providers — platform-level (used for app OTP only)  */
+    /* ──────────────────────────────────────────────────────────── */
+
+    /**
+     * GET /api/op/settings/otp-sms
+     *
+     * Returns the OTP SMS provider configs. Each provider has its own
+     * key in `platform_settings` so they can be configured independently.
+     * The one that is `enabled` is the active OTP provider.
+     */
+    public function showOtpSms(): JsonResponse
+    {
+        $smscountry = $this->settings->get('otp_sms.smscountry');
+        $twilio = $this->settings->get('otp_sms.twilio');
+        $messagecentral = $this->settings->get('otp_sms.messagecentral');
+        $unifonic = $this->settings->get('otp_sms.unifonic');
+
+        return response()->json([
+            'data' => [
+                'messagecentral' => [
+                    'enabled' => (bool) ($messagecentral['enabled'] ?? false),
+                    'customer_id' => $messagecentral['customer_id'] ?? '',
+                    'auth_token_masked' => ! empty($messagecentral['auth_token'])
+                        ? str_repeat('•', 4).substr($messagecentral['auth_token'], -4)
+                        : '',
+                    'has_auth_token' => ! empty($messagecentral['auth_token']),
+                ],
+                'unifonic' => [
+                    'enabled' => (bool) ($unifonic['enabled'] ?? false),
+                    'app_sid' => $unifonic['app_sid'] ?? '',
+                    'sender_id' => $unifonic['sender_id'] ?? '',
+                ],
+                'smscountry' => [
+                    'enabled' => (bool) ($smscountry['enabled'] ?? false),
+                    'auth_key' => $smscountry['auth_key'] ?? '',
+                    'auth_token_masked' => ! empty($smscountry['auth_token'])
+                        ? str_repeat('•', 4).substr($smscountry['auth_token'], -4)
+                        : '',
+                    'has_auth_token' => ! empty($smscountry['auth_token']),
+                    'sender_id' => $smscountry['sender_id'] ?? '',
+                ],
+                'twilio' => [
+                    'enabled' => (bool) ($twilio['enabled'] ?? false),
+                    'account_sid' => $twilio['account_sid'] ?? '',
+                    'auth_token_masked' => ! empty($twilio['auth_token'])
+                        ? str_repeat('•', 4).substr($twilio['auth_token'], -4)
+                        : '',
+                    'has_auth_token' => ! empty($twilio['auth_token']),
+                    'from_number' => $twilio['from_number'] ?? '',
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Disable all OTP providers except the given one.
+     */
+    private function disableOtherOtpProviders(string $except): void
+    {
+        $providers = ['messagecentral', 'unifonic', 'smscountry', 'twilio'];
+        foreach ($providers as $p) {
+            if ($p !== $except) {
+                $this->settings->merge("otp_sms.{$p}", ['enabled' => false]);
+            }
+        }
+    }
+
+    /**
+     * PUT /api/op/settings/otp-sms/messagecentral
+     */
+    public function updateOtpMessageCentral(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'customer_id' => ['nullable', 'string', 'max:255'],
+            'auth_token' => ['nullable', 'string', 'max:2048'],
+        ]);
+
+        $patch = [];
+        foreach ($data as $k => $v) {
+            if ($k === 'enabled' && $v !== null) {
+                $patch[$k] = (bool) $v;
+
+                continue;
+            }
+            if ($v !== null && $v !== '') {
+                $patch[$k] = $v;
+            }
+        }
+
+        if (! empty($patch['enabled']) && $patch['enabled'] === true) {
+            $this->disableOtherOtpProviders('messagecentral');
+        }
+
+        if (! empty($patch)) {
+            $this->settings->merge('otp_sms.messagecentral', $patch);
+        }
+
+        return $this->showOtpSms();
+    }
+
+    /**
+     * PUT /api/op/settings/otp-sms/unifonic
+     */
+    public function updateOtpUnifonic(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'app_sid' => ['nullable', 'string', 'max:255'],
+            'sender_id' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $patch = [];
+        foreach ($data as $k => $v) {
+            if ($k === 'enabled' && $v !== null) {
+                $patch[$k] = (bool) $v;
+
+                continue;
+            }
+            if ($v !== null && $v !== '') {
+                $patch[$k] = $v;
+            }
+        }
+
+        if (! empty($patch['enabled']) && $patch['enabled'] === true) {
+            $this->disableOtherOtpProviders('unifonic');
+        }
+
+        if (! empty($patch)) {
+            $this->settings->merge('otp_sms.unifonic', $patch);
+        }
+
+        return $this->showOtpSms();
+    }
+
+    /**
+     * PUT /api/op/settings/otp-sms/smscountry
+     */
+    public function updateOtpSmsCountry(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'auth_key' => ['nullable', 'string', 'max:255'],
+            'auth_token' => ['nullable', 'string', 'max:1024'],
+            'sender_id' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $patch = [];
+        foreach ($data as $k => $v) {
+            if ($k === 'enabled' && $v !== null) {
+                $patch[$k] = (bool) $v;
+
+                continue;
+            }
+            if ($v !== null && $v !== '') {
+                $patch[$k] = $v;
+            }
+        }
+
+        if (! empty($patch['enabled']) && $patch['enabled'] === true) {
+            $this->disableOtherOtpProviders('smscountry');
+        }
+
+        if (! empty($patch)) {
+            $this->settings->merge('otp_sms.smscountry', $patch);
+        }
+
+        return $this->showOtpSms();
+    }
+
+    /**
+     * PUT /api/op/settings/otp-sms/twilio
+     */
+    public function updateOtpTwilio(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'account_sid' => ['nullable', 'string', 'max:255'],
+            'auth_token' => ['nullable', 'string', 'max:1024'],
+            'from_number' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $patch = [];
+        foreach ($data as $k => $v) {
+            if ($k === 'enabled' && $v !== null) {
+                $patch[$k] = (bool) $v;
+
+                continue;
+            }
+            if ($v !== null && $v !== '') {
+                $patch[$k] = $v;
+            }
+        }
+
+        if (! empty($patch['enabled']) && $patch['enabled'] === true) {
+            $this->disableOtherOtpProviders('twilio');
+        }
+
+        if (! empty($patch)) {
+            $this->settings->merge('otp_sms.twilio', $patch);
+        }
+
+        return $this->showOtpSms();
+    }
+
+    /**
+     * POST /api/op/settings/otp-sms/test
+     * Body: { provider: "messagecentral"|"unifonic"|"smscountry"|"twilio", to: string }
+     */
+    public function testOtpSms(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'provider' => ['required', 'string', 'in:messagecentral,unifonic,smscountry,twilio'],
+            'to' => ['required', 'string', 'min:5', 'max:32'],
+        ]);
+
+        $provider = $data['provider'];
+        $testBody = '✅ Stamply — رسالة اختبار OTP. إذا وصلتك هذه الرسالة فإن إعدادات مزوّد الـ SMS تعمل.';
+
+        try {
+            if ($provider === 'messagecentral') {
+                $config = $this->settings->get('otp_sms.messagecentral');
+                $this->testMessageCentral($data['to'], $config);
+            } elseif ($provider === 'unifonic') {
+                $config = $this->settings->get('otp_sms.unifonic');
+                $this->testUnifonic($data['to'], $config);
+            } elseif ($provider === 'smscountry') {
+                $config = $this->settings->get('otp_sms.smscountry');
+                $this->sms->testSmsCountry($data['to'], $testBody, $config);
+            } else {
+                $config = $this->settings->get('otp_sms.twilio');
+                $client = $this->sms->buildTwilioClient([
+                    'account_sid' => $config['account_sid'] ?? '',
+                    'auth_token' => $config['auth_token'] ?? '',
+                ]);
+                $client->messages->create($data['to'], [
+                    'from' => $config['from_number'] ?? '',
+                    'body' => $testBody,
+                ]);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'تم إرسال رسالة الاختبار بنجاح',
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $this->translateProviderError($provider, $e),
+            ], 422);
+        }
+    }
+
+    /**
+     * Send a test OTP via MessageCentral API.
+     */
+    private function testMessageCentral(string $to, array $config): void
+    {
+        $customerId = $config['customer_id'] ?? '';
+        $authToken = $config['auth_token'] ?? '';
+
+        // Extract country code and local number
+        $phone = ltrim($to, '+');
+        $countryCode = substr($phone, 0, strlen($phone) - 9);
+        $mobileNumber = substr($phone, -9);
+
+        $client = new \GuzzleHttp\Client([
+            'timeout' => 15,
+            'http_errors' => false, // Don't throw on 4xx/5xx
+        ]);
+
+        $response = $client->post('https://cpaas.messagecentral.com/verification/v3/send', [
+            'query' => [
+                'countryCode' => $countryCode,
+                'customerId' => $customerId,
+                'flowType' => 'SMS',
+                'mobileNumber' => $mobileNumber,
+            ],
+            'headers' => [
+                'authToken' => $authToken,
+            ],
+        ]);
+
+        $result = json_decode($response->getBody()->getContents(), true);
+        $code = (int) ($result['responseCode'] ?? 0);
+        $msg = $result['message'] ?? '';
+        $errorMsg = $result['data']['errorMessage'] ?? '';
+
+        if ($code !== 200) {
+            throw new \RuntimeException(json_encode([
+                'provider' => 'messagecentral',
+                'code' => $code,
+                'message' => $msg,
+                'error' => $errorMsg,
+            ]));
+        }
+    }
+
+    /**
+     * Send a test OTP via Unifonic Verify API.
+     */
+    private function testUnifonic(string $to, array $config): void
+    {
+        $appSid = $config['app_sid'] ?? '';
+        $recipient = ltrim($to, '+');
+
+        $client = new \GuzzleHttp\Client(['timeout' => 15, 'http_errors' => false]);
+        $response = $client->post('https://el.cloud.unifonic.com/rest/Verify/Send', [
+            'form_params' => [
+                'AppSid' => $appSid,
+                'Recipient' => $recipient,
+                'Channel' => 'sms',
+            ],
+        ]);
+
+        $result = json_decode($response->getBody()->getContents(), true);
+        $success = ($result['success'] ?? false) || ($result['Status'] ?? '') === 'Sent';
+
+        if (! $success) {
+            throw new \RuntimeException(json_encode([
+                'provider' => 'unifonic',
+                'code' => $result['errorCode'] ?? $result['StatusCode'] ?? 0,
+                'message' => $result['message'] ?? $result['ErrorMessage'] ?? 'Unifonic API error',
+                'error' => $result['ErrorMessage'] ?? $result['message'] ?? '',
+            ]));
+        }
+    }
+
+    /**
+     * Translate provider API errors into user-friendly Arabic messages.
+     */
+    private function translateProviderError(string $provider, Throwable $e): string
+    {
+        $raw = $e->getMessage();
+
+        // Try to parse structured error from our providers
+        $parsed = json_decode($raw, true);
+        if (is_array($parsed) && isset($parsed['provider'])) {
+            return match (true) {
+                // MessageCentral known errors
+                str_contains($parsed['error'] ?? '', 'nsufficient credits'),
+                str_contains($parsed['message'] ?? '', 'nsufficient credits')
+                    => 'رصيد حساب MessageCentral غير كافٍ. يرجى شحن الرصيد من لوحة تحكم messagecentral.com',
+                str_contains($parsed['message'] ?? '', 'nauthorized'),
+                str_contains($parsed['message'] ?? '', 'nvalid auth')
+                    => 'بيانات المصادقة غير صحيحة. تأكد من Customer ID و Auth Token',
+                str_contains($parsed['error'] ?? '', 'nvalid mobile'),
+                str_contains($parsed['message'] ?? '', 'nvalid mobile')
+                    => 'رقم الجوال غير صالح. تأكد من صيغة الرقم',
+                // Unifonic known errors
+                $parsed['provider'] === 'unifonic' && str_contains($parsed['error'] ?? '', 'nvalid AppSid')
+                    => 'AppSid غير صحيح. تأكد من المعرّف من لوحة تحكم Unifonic',
+                $parsed['provider'] === 'unifonic' && (str_contains($parsed['error'] ?? '', 'nsufficient') || str_contains($parsed['message'] ?? '', 'nsufficient'))
+                    => 'رصيد حساب Unifonic غير كافٍ. يرجى شحن الرصيد من لوحة تحكم unifonic.com',
+                default => "خطأ من {$parsed['provider']}: ".($parsed['error'] ?: $parsed['message'] ?? 'خطأ غير معروف'),
+            };
+        }
+
+        // Guzzle connection / HTTP errors
+        if (str_contains($raw, 'nsufficient credits') || str_contains($raw, 'nsufficient Credits')) {
+            return 'رصيد حساب المزوّد غير كافٍ. يرجى شحن الرصيد من لوحة تحكم المزوّد';
+        }
+
+        if (str_contains($raw, 'Could not resolve host') || str_contains($raw, 'Connection refused')) {
+            return 'تعذر الاتصال بخادم المزوّد. تحقق من اتصال الإنترنت';
+        }
+
+        if (str_contains($raw, 'timed out') || str_contains($raw, 'Timeout')) {
+            return 'انتهت مهلة الاتصال بالمزوّد. حاول مرة أخرى';
+        }
+
+        return 'فشل الإرسال: '.$raw;
     }
 }
